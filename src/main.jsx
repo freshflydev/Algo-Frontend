@@ -595,7 +595,7 @@ function AdminInstruments({ instruments, refresh, setNotice }) {
       </div>
       <div className="panel wide">
         <div className="panelHeader"><h2>Resolver & Sync Table</h2><span className="pill">{filtered.length} visible</span></div>
-        <DataTable rows={filtered} columns={['symbol', 'category', 'latest_ha_swing_trend', 'continuation_days', 'latest_stop_loss', 'last_sync_at', 'sync_status']} action={(row) => (
+        <DataTable rows={filtered} columns={['symbol', 'category', 'candle_status', 'daily_candle_count', 'intraday_candle_count', 'latest_candle_date', 'latest_ha_swing_trend', 'continuation_days', 'latest_stop_loss', 'sync_status']} action={(row) => (
           <div className="buttonCluster">
             <button onClick={() => toggleTrend(row)}><LineChart size={16} /></button>
             <SyncBar value={row.sync_progress} status={row.sync_status} />
@@ -1072,6 +1072,7 @@ function TradeCards({ trades, mobile, setTrades, setNotice }) {
 function InstrumentSignalCard({ item, active, onClick }) {
   const tone = trendTone(item.latest_ha_swing_trend);
   const synced = item.sync_status === 'ready' || item.sync_status === 'complete';
+  const hasCandles = Number(item.candle_count || 0) > 0;
   const Icon = tone === 'bullish' ? TrendingUp : tone === 'bearish' ? TrendingDown : LineChart;
   return (
     <button className={`instrumentCard ${tone} ${active ? 'active' : ''}`} onClick={onClick}>
@@ -1082,6 +1083,9 @@ function InstrumentSignalCard({ item, active, onClick }) {
         </div>
         <Icon size={18} />
       </div>
+      <span className={`statusDot candleDot ${hasCandles ? 'active' : ''}`}>
+        {hasCandles ? `${item.candle_count} candles` : 'No candles'}
+      </span>
       <div className="signalRow">
         <SignalPill icon={Clock} label={`${item.continuation_days || 0}d`} tone={tone} />
         <SignalPill icon={Target} label={formatCell(item.latest_stop_loss)} tone="neutral" />
@@ -1179,7 +1183,7 @@ function DataTable({ rows = [], columns, action, highlightPnl }) {
           {rows.length === 0 && <tr><td colSpan={columns.length + (action ? 1 : 0)}>No records</td></tr>}
           {rows.map((row, index) => (
             <tr key={`${row.id || row.mobile || row.symbol || index}-${index}`}>
-              {columns.map((column) => <td key={column} className={highlightPnl && /pnl|profit|totalPnl/i.test(column) ? pnlClass(row[column]) : ''}>{formatCell(row[column])}</td>)}
+              {columns.map((column) => <td key={column} className={highlightPnl && /pnl|profit|totalPnl/i.test(column) ? pnlClass(row[column]) : ''}>{renderCell(row, column)}</td>)}
               {action && <td>{action(row)}</td>}
             </tr>
           ))}
@@ -1187,6 +1191,14 @@ function DataTable({ rows = [], columns, action, highlightPnl }) {
       </table>
     </div>
   );
+}
+
+function renderCell(row, column) {
+  if (column === 'candle_status') {
+    const hasCandles = Number(row.candle_count || 0) > 0;
+    return <span className={`statusDot ${hasCandles ? 'active' : ''}`}>{hasCandles ? 'Stored' : 'Missing'}</span>;
+  }
+  return formatCell(row[column]);
 }
 
 function Select({ label, value, onChange, options }) {

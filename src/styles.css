@@ -800,6 +800,11 @@ input, select {
 
 .statusDot.active::before { background: #10b981; }
 
+.candleDot {
+  margin-top: 8px;
+  justify-content: flex-start;
+}
+
 .historyStack {
   display: grid;
   gap: 14px;
