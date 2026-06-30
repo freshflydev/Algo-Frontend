@@ -44,6 +44,19 @@ function App() {
   const [session, setSession] = useState(() => JSON.parse(localStorage.getItem('algo.session') || 'null'));
   const [notice, setNotice] = useState('');
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const brokerStatus = params.get('brokerStatus');
+    if (!brokerStatus) return;
+    const message = params.get('message') || (brokerStatus === 'connected' ? 'Broker connected successfully.' : 'Broker connection failed.');
+    setNotice(message);
+    params.delete('brokerStatus');
+    params.delete('role');
+    params.delete('message');
+    const next = `${window.location.pathname}${params.toString() ? `?${params}` : ''}${window.location.hash}`;
+    window.history.replaceState({}, '', next);
+  }, []);
+
   const login = async (mobile, name) => {
     const res = await api('/api/login', { method: 'POST', body: { mobile, name } });
     const next = res.data;
@@ -169,7 +182,7 @@ function UserApp({ session, logout, notice, setNotice }) {
       )}
       {tab === 'broker' && <UserBrokers mobile={mobile} brokers={brokers} settings={settings} refresh={refresh} setNotice={setNotice} />}
       {tab === 'strategy' && <UserStrategies mobile={mobile} strategies={strategies} refresh={refresh} setNotice={setNotice} />}
-      {tab === 'trades' && <TradeCards trades={trades} />}
+      {tab === 'trades' && <TradeCards trades={trades} mobile={mobile} setTrades={setTrades} setNotice={setNotice} />}
       {modal === 'history' && <Modal title="Last 20 Logins" onClose={() => setModal(null)}><DataTable rows={history} columns={['created_at', 'mobile', 'role', 'status', 'message']} /></Modal>}
     </Shell>
   );
@@ -459,7 +472,7 @@ function AdminApp({ session, logout, notice, setNotice }) {
       {tab === 'strategies' && <AdminStrategies strategies={state.strategies || []} instruments={state.instruments || []} setNotice={setNotice} refresh={refresh} />}
       {tab === 'backtest' && <Backtests instruments={state.instruments || []} setNotice={setNotice} />}
       {tab === 'performance' && <Performance performance={state.performance || []} backtests={state.backtests || []} />}
-      {tab === 'trades' && <TradeCards trades={state.trades || []} />}
+      {tab === 'trades' && <TradeCards trades={state.trades || []} setNotice={setNotice} />}
       {tab === 'monitor' && <Monitor openOrders={state.openOrders || []} brokers={state.brokers || []} instances={state.instances || []} />}
       {tab === 'logs' && <Logs logs={state.logs || []} />}
       {tab === 'system' && <SystemSettings settings={state.settings || {}} setNotice={setNotice} refresh={refresh} />}
@@ -598,22 +611,39 @@ function AdminBrokerPanel({ settings, setNotice, refresh }) {
     setNotice('Data source broker settings saved.');
     refresh();
   };
+  const connect = async () => {
+    await save();
+    const res = await api('/api/admin/brokers/connect', { method: 'POST' });
+    setNotice(`Opening ${res.data.broker} data source login.`);
+    window.open(res.data.authUrl, '_blank', 'noopener,noreferrer');
+  };
   return (
     <section className="grid two">
       <div className="panel">
-        <div className="panelHeader"><h2>Data Source Broker</h2><button className="primary" onClick={save}><Save size={16} />Save</button></div>
+        <div className="panelHeader">
+          <h2>Data Source Broker</h2>
+          <div className="buttonCluster">
+            <button onClick={save}><Save size={16} />Save</button>
+            <button className="primary" onClick={connect}><PlugZap size={16} />Connect</button>
+          </div>
+        </div>
         <div className="formStack">
           <Select label="Broker" value={form.data_source_broker} onChange={(v) => setForm({ ...form, data_source_broker: v })} options={['fyers']} />
           <input placeholder="API key" value={form.data_source_api_key} onChange={(e) => setForm({ ...form, data_source_api_key: e.target.value })} />
           <input placeholder="Secret key" value={form.data_source_secret_key} onChange={(e) => setForm({ ...form, data_source_secret_key: e.target.value })} />
-          <input placeholder="Access token" value={form.data_source_access_token} onChange={(e) => setForm({ ...form, data_source_access_token: e.target.value })} />
-          <input placeholder="Refresh token" value={form.data_source_refresh_token} onChange={(e) => setForm({ ...form, data_source_refresh_token: e.target.value })} />
           <input placeholder="Server static IP" value={form.server_static_ip || ''} onChange={(e) => setForm({ ...form, server_static_ip: e.target.value })} />
+          <input placeholder="Frontend URL" value={form.frontend_url || ''} onChange={(e) => setForm({ ...form, frontend_url: e.target.value })} />
+          <input placeholder="Public API base" value={form.public_api_base || ''} onChange={(e) => setForm({ ...form, public_api_base: e.target.value })} />
         </div>
       </div>
       <div className="panel">
         <div className="panelHeader"><h2>Status</h2><span className="pill">{form.data_source_status}</span></div>
-        <div className="emptyState">Use backend callback {API}/api/callback/fyers for the admin data source broker.</div>
+        <div className="miniGrid twoCols">
+          <Info label="Broker" value={form.data_source_broker} />
+          <Info label="Callback" value={`${API}/api/callback/fyers?admin=1`} />
+          <Info label="Access Token" value={form.data_source_access_token ? 'saved' : 'not connected'} />
+          <Info label="Refresh Token" value={form.data_source_refresh_token ? 'saved' : 'not available'} />
+        </div>
       </div>
     </section>
   );
@@ -857,16 +887,18 @@ function targetTicks(targets = []) {
 }
 
 function trendTone(trend = '') {
-  if (trend.includes('BULLISH')) return 'bullish';
-  if (trend.includes('BEARISH')) return 'bearish';
+  const value = String(trend || '');
+  if (value.includes('BULLISH')) return 'bullish';
+  if (value.includes('BEARISH')) return 'bearish';
   return 'neutral';
 }
 
 function trendLabel(trend = '') {
-  if (trend.includes('EXTREME_BULLISH')) return 'Bull+';
-  if (trend.includes('MILD_BULLISH')) return 'Bull';
-  if (trend.includes('EXTREME_BEARISH')) return 'Bear+';
-  if (trend.includes('MILD_BEARISH')) return 'Bear';
+  const value = String(trend || '');
+  if (value.includes('EXTREME_BULLISH')) return 'Bull+';
+  if (value.includes('MILD_BULLISH')) return 'Bull';
+  if (value.includes('EXTREME_BEARISH')) return 'Bear+';
+  if (value.includes('MILD_BEARISH')) return 'Bear';
   return 'Neutral';
 }
 
@@ -916,17 +948,60 @@ function SystemSettings({ settings, setNotice, refresh }) {
   );
 }
 
-function TradeCards({ trades }) {
+function TradeCards({ trades, mobile, setTrades, setNotice }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [category, setCategory] = useState('all');
+  const [date, setDate] = useState('');
+  const load = async () => {
+    if (!setTrades) return;
+    try {
+      const params = new URLSearchParams();
+      if (mobile) params.set('mobile', mobile);
+      if (category !== 'all') params.set('category', category);
+      if (date) params.set('date', date);
+      const res = await api(`/api/admin/trades?${params.toString()}`);
+      setTrades(res.data || []);
+      setNotice?.(`Loaded ${res.data?.length || 0} trade records.`);
+    } catch (error) {
+      setNotice?.(error.message);
+    }
+  };
+  useEffect(() => {
+    if (setTrades) load();
+  }, [category, date]);
+  const filteredTrades = setTrades ? trades : trades.filter((trade) => {
+    const categoryMatch = category === 'all' || trade.category === category;
+    const dateValue = String(trade.created_at || trade.entered_at || '').slice(0, 10);
+    const dateMatch = !date || dateValue === date;
+    return categoryMatch && dateMatch;
+  });
   return (
-    <section className="tradeGrid">
-      {trades.map((trade) => {
+    <section className="tradeSection">
+      <div className="panel">
+        <div className="panelHeader"><h2>Trade History</h2><span className="pill">{filteredTrades.length} records</span></div>
+        <div className="instrumentToolbar">
+          <div className="segmented">
+            {['all', 'stock', 'index', 'commodity'].map((item) => <button key={item} className={category === item ? 'active' : ''} onClick={() => setCategory(item)}>{optionLabel(item)}</button>)}
+          </div>
+          <label className="field">
+            <span>Trade Date</span>
+            <input type="date" max={today} value={date} onChange={(e) => setDate(e.target.value)} />
+          </label>
+          <div className="buttonCluster">
+            <button onClick={() => { setDate(''); setCategory('all'); }}><RefreshCw size={16} />Reset</button>
+            {setTrades && <button className="primary" onClick={load}><Search size={16} />Load</button>}
+          </div>
+        </div>
+      </div>
+      <div className="tradeGrid">
+      {filteredTrades.map((trade) => {
         const pnl = Number((trade.exit_price || trade.entry_price || 0) - (trade.entry_price || 0));
         const hit = String(trade.exit_reason || '').includes('TARGET') ? 'target' : String(trade.exit_reason || '').includes('SL') ? 'sl' : 'live';
         return (
           <article className="tradeCard" key={trade.id || trade.order_tag}>
             <div className="tradeTop">
               <strong>{trade.symbol}</strong>
-              <span className={pnl >= 0 ? 'pnl good' : 'pnl bad'}>{trade.status}</span>
+              <span className={pnl >= 0 ? 'pnl good' : 'pnl bad'}>{trade.status} · {trade.category || 'stock'}</span>
             </div>
             <div className="targetBoxes">
               {[1, 2, 3, 4, 5].map((level) => <span key={level} className={hit === 'target' && Number(trade.target_level) === level ? 'hit' : ''}>T{level}</span>)}
@@ -943,7 +1018,8 @@ function TradeCards({ trades }) {
           </article>
         );
       })}
-      {trades.length === 0 && <div className="emptyState">No trades found.</div>}
+      {filteredTrades.length === 0 && <div className="emptyState">No trades found for this filter.</div>}
+      </div>
     </section>
   );
 }

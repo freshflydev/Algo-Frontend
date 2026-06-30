@@ -329,6 +329,11 @@ input, select {
   gap: 12px;
 }
 
+.tradeSection {
+  display: grid;
+  gap: 12px;
+}
+
 .instrumentLayout {
   display: grid;
   gap: 12px;
