@@ -544,7 +544,7 @@ function AdminInstruments({ instruments, refresh, setNotice }) {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
   const [expanded, setExpanded] = useState(null);
-  const [trend, setTrend] = useState([]);
+  const [trend, setTrend] = useState(null);
   const filtered = useMemo(() => {
     const q = query.trim().toUpperCase();
     return instruments.filter((item) => {
@@ -586,7 +586,7 @@ function AdminInstruments({ instruments, refresh, setNotice }) {
       setTrend(res.data || []);
     } catch (error) {
       setNotice(error.message);
-      setTrend([]);
+      setTrend(null);
     }
   };
   return (
@@ -909,38 +909,52 @@ function Performance({ performance, backtests }) {
 }
 
 function TrendBlocks({ symbol, rows }) {
+  const normalRows = rows?.latestFirst?.normal || rows?.normal || [];
+  const haRows = rows?.latestFirst?.heikinAshi || rows?.heikinAshi || [];
   return (
     <div className="trendPanel">
-      <div className="panelHeader"><h2>{symbol} Trend Blocks</h2><span className="pill">latest to old</span></div>
+      <div className="panelHeader">
+        <h2>{symbol} Trend Blocks</h2>
+        <span className="pill">{rows?.loadedCandles || 0} daily candles · HA warmup {rows?.requiredWarmupDays || 0}d</span>
+      </div>
+      <TrendTrack title="Normal Candles" rows={normalRows} />
+      <TrendTrack title="Heikin Ashi" rows={haRows} />
+      {normalRows.length === 0 && haRows.length === 0 && <div className="emptyState">No daily candle trend yet. Resync daily candles first.</div>}
+    </div>
+  );
+}
+
+function TrendTrack({ title, rows }) {
+  return (
+    <div className="trendTrack">
+      <div className="trackTitle"><strong>{title}</strong><span>latest to old</span></div>
       <div className="trendBlocks">
         {rows.map((row) => (
-          <div className={`trendBlock ${trendTone(row.trend)}`} key={row.trade_date} title={trendTitle(row)}>
+          <div className={`trendBlock ${trendTone(row.trend)}`} key={`${row.mode}-${row.trade_date}`} title={trendTitle(row)}>
             <strong>{row.trade_date.slice(5)}</strong>
             <span>{trendLabel(row.trend)}</span>
-            <em>{row.continuation_days}d</em>
+            <em>{row.continuation_days}d · SL {formatCell(row.stop_loss)}</em>
             <small>{targetTicks(row.target_hits)}</small>
           </div>
         ))}
-        {rows.length === 0 && <div className="emptyState">No trend analysis yet. Run daily analysis after daily candles are synced.</div>}
       </div>
     </div>
   );
 }
 
 function trendTitle(row) {
-  const targets = (row.target_hits || []).map((target) => `T${target.level}:${target.hitNormal || target.hitHa ? 'hit' : '-'}`).join(' ');
+  const targets = (row.target_hits || []).map((target) => `T${target.level}:${target.hit ? 'hit' : '-'}`).join(' ');
   return [
-    `${row.trade_date} ${row.trend}`,
-    `Close ${formatCell(row.close)} HA ${formatCell(row.ha_close)}`,
+    `${row.trade_date} ${row.mode === 'ha' ? 'Heikin Ashi' : 'Normal'} ${row.trend}`,
+    `Open ${formatCell(row.open)} High ${formatCell(row.high)} Low ${formatCell(row.low)} Close ${formatCell(row.close)}`,
     `GANN Buy ${formatCell(row.gann_buy)} Sell ${formatCell(row.gann_sell)}`,
-    `HA Buy ${formatCell(row.ha_gann_buy)} HA Sell ${formatCell(row.ha_gann_sell)}`,
     `SL ${formatCell(row.stop_loss)} SL hit ${row.sl_hit ? 'yes' : 'no'}`,
     targets,
   ].join('\n');
 }
 
 function targetTicks(targets = []) {
-  return targets.map((target) => (target.hitNormal || target.hitHa ? `T${target.level}✓` : `T${target.level}`)).join(' ');
+  return targets.map((target) => (target.hit ? `T${target.level}✓` : `T${target.level}`)).join(' ');
 }
 
 function trendTone(trend = '') {

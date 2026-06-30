@@ -1167,6 +1167,26 @@ th { color: #5b6b76; font-size: 11px; text-transform: uppercase; }
   gap: 7px;
 }
 
+.trendTrack {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.trackTitle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.trackTitle strong {
+  color: #102033;
+  font-size: 14px;
+}
+
 .trendBlock {
   min-height: 72px;
   display: grid;
