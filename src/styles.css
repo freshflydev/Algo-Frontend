@@ -78,10 +78,14 @@ input, select {
 }
 
 .sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
   border-right: 1px solid #d8e0e7;
   background: linear-gradient(180deg, #142129 0%, #1c2c34 100%);
   color: #f4f7fa;
   padding: 15px 12px;
+  overflow-y: auto;
 }
 
 .brand {
@@ -91,6 +95,11 @@ input, select {
 
 .brand strong, .brand span { display: block; }
 .brand span { color: #aebbc5; font-size: 12px; }
+
+.navRail {
+  display: grid;
+  gap: 2px;
+}
 
 .nav {
   width: 100%;
@@ -119,6 +128,26 @@ input, select {
 
 .topbar h1 { margin: 0; font-size: 23px; letter-spacing: 0; }
 .topbar p { margin: 3px 0 0; color: #60717d; }
+
+.statusStrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+  margin: -6px 0 14px;
+  color: #52616b;
+  font-size: 12px;
+}
+
+.statusStrip > span:last-child {
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #d9e2e8;
+  border-radius: 999px;
+  padding: 3px 9px;
+  background: #fff;
+}
 
 .grid {
   display: grid;
@@ -182,6 +211,7 @@ input, select {
 }
 
 .toolbar.compact { grid-template-columns: minmax(180px, 320px); }
+.toolbarSpan { grid-column: span 2; min-width: min(100%, 360px); }
 
 .field { display: grid; gap: 5px; color: #60717d; font-size: 12px; }
 .field.inline {
@@ -207,6 +237,50 @@ input, select {
   grid-template-columns: repeat(4, minmax(130px, 1fr));
   gap: 9px;
   margin-bottom: 12px;
+}
+
+.workflowPanel {
+  background: linear-gradient(135deg, #ffffff 0%, #f7fbfa 100%);
+}
+
+.workflowSteps {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 9px;
+}
+
+.stepCard {
+  min-height: 78px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  grid-template-areas: "icon label" "icon value";
+  gap: 2px 9px;
+  align-content: center;
+  border: 1px solid #e2e8ee;
+  border-radius: 8px;
+  padding: 11px;
+  background: #fff;
+}
+
+.stepCard svg { grid-area: icon; margin-top: 2px; color: #0f766e; }
+.stepCard span { grid-area: label; color: #64748b; font-size: 12px; }
+.stepCard strong { grid-area: value; font-size: 17px; letter-spacing: 0; }
+.stepCard.good { border-color: #9bd8bf; background: #ecfdf5; }
+.stepCard.warn { border-color: #f1c27d; background: #fffbeb; }
+.stepCard.muted { background: #f8fafb; }
+
+.positionStrip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.orderMiniCard {
+  min-width: 0;
+  border: 1px solid #e2e8ee;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fbfcfd;
 }
 
 .miniGrid {
@@ -253,6 +327,173 @@ input, select {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+}
+
+.instrumentLayout {
+  display: grid;
+  gap: 12px;
+}
+
+.instrumentToolbar {
+  display: grid;
+  grid-template-columns: minmax(190px, 1fr) auto minmax(160px, 240px);
+  gap: 9px;
+  align-items: center;
+}
+
+.searchField {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px;
+  border: 1px solid #c9d3dc;
+  border-radius: 6px;
+  padding: 0 10px;
+  background: #fff;
+}
+
+.searchField svg { color: #64748b; }
+.searchField input {
+  min-height: 34px;
+  border: 0;
+  padding: 0;
+  outline: 0;
+}
+
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.segmented button {
+  min-height: 34px;
+  border-color: #d5dee6;
+  background: #f8fafb;
+  text-transform: capitalize;
+}
+
+.segmented button.active {
+  border-color: #0f766e;
+  background: #e7f8f4;
+  color: #064e3b;
+  box-shadow: inset 0 0 0 1px #0f766e;
+}
+
+.symbolInput {
+  font-weight: 650;
+  text-transform: uppercase;
+}
+
+.instrumentCards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.instrumentCard {
+  min-height: 126px;
+  display: grid;
+  align-content: space-between;
+  gap: 10px;
+  justify-content: stretch;
+  border: 1px solid #d9e2e8;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+  color: #162027;
+  text-align: left;
+  box-shadow: 0 8px 22px rgba(23, 32, 38, .045);
+}
+
+.instrumentCard:hover,
+.instrumentCard.active {
+  border-color: #9eb0bd;
+  box-shadow: 0 10px 28px rgba(23, 32, 38, .09);
+}
+
+.instrumentCard.bullish { background: linear-gradient(135deg, #ffffff 0%, #ecfdf5 100%); }
+.instrumentCard.bearish { background: linear-gradient(135deg, #ffffff 0%, #fff1f2 100%); }
+.instrumentCard.neutral { background: linear-gradient(135deg, #ffffff 0%, #f8fafb 100%); }
+.instrumentCard.bullish .instrumentCardTop svg { color: #047857; }
+.instrumentCard.bearish .instrumentCardTop svg { color: #b42318; }
+
+.instrumentCardTop {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.instrumentCardTop strong,
+.instrumentCardTop span {
+  display: block;
+}
+
+.instrumentCardTop strong {
+  font-size: 19px;
+  letter-spacing: 0;
+}
+
+.instrumentCardTop span {
+  margin-top: 2px;
+  color: #64748b;
+  font-size: 12px;
+  text-transform: capitalize;
+}
+
+.signalRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.signalPill {
+  min-height: 24px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid #d5dee6;
+  border-radius: 999px;
+  padding: 2px 7px;
+  background: #f8fafb;
+  color: #52616b;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.signalPill.good,
+.signalPill.bullish {
+  border-color: #9bd8bf;
+  background: #ecfdf5;
+  color: #047857;
+}
+
+.signalPill.warn {
+  border-color: #f1c27d;
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.signalPill.bearish {
+  border-color: #f0aaa4;
+  background: #fff1f2;
+  color: #b42318;
+}
+
+.syncLine {
+  height: 5px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e5edf2;
+}
+
+.syncLine span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #0f766e;
 }
 
 .strategyList {
@@ -343,6 +584,201 @@ input, select {
   gap: 14px;
 }
 
+.backtestLayout,
+.backtestInstruments,
+.strategyResultStack {
+  display: grid;
+  gap: 12px;
+}
+
+.backtestToolbar {
+  align-items: end;
+}
+
+.backtestInstrument {
+  padding: 0;
+  overflow: hidden;
+}
+
+.instrumentHeader {
+  width: 100%;
+  min-height: 68px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  justify-content: stretch;
+  border: 0;
+  border-radius: 0;
+  padding: 13px;
+  background: #fff;
+  text-align: left;
+}
+
+.instrumentHeader strong,
+.instrumentHeader span,
+.instrumentScore b {
+  display: block;
+}
+
+.instrumentHeader strong {
+  font-size: 18px;
+  letter-spacing: 0;
+}
+
+.instrumentHeader span {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.instrumentScore {
+  min-width: 170px;
+  text-align: right;
+}
+
+.instrumentScore b {
+  font-size: 20px;
+  letter-spacing: 0;
+}
+
+.strategyResult {
+  display: grid;
+  gap: 10px;
+  border-top: 1px solid #e2e8ee;
+  padding: 13px;
+  background: #fbfcfd;
+}
+
+.targetStatGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.targetStat {
+  display: grid;
+  gap: 3px;
+  border: 1px solid #e2e8ee;
+  border-radius: 7px;
+  padding: 9px;
+  background: #fff;
+}
+
+.targetStat strong {
+  font-size: 16px;
+}
+
+.targetStat span,
+.targetStat em {
+  color: #64748b;
+  font-size: 12px;
+  font-style: normal;
+}
+
+.variantRail {
+  display: grid;
+  gap: 9px;
+}
+
+.variantLane {
+  display: grid;
+  grid-template-columns: 176px minmax(0, 1fr);
+  gap: 10px;
+  align-items: stretch;
+  border: 1px solid #e2e8ee;
+  border-radius: 8px;
+  padding: 8px;
+  background: #fff;
+}
+
+.variantLabel {
+  display: grid;
+  align-content: center;
+  gap: 3px;
+}
+
+.variantLabel strong,
+.variantLabel span {
+  display: block;
+}
+
+.variantLabel strong {
+  font-size: 18px;
+}
+
+.variantLabel span {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.dayBlocks {
+  display: flex;
+  min-width: 0;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.dayBlocks.empty {
+  align-items: center;
+  border: 1px dashed #d5dee6;
+  border-radius: 7px;
+  padding: 10px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.dayBlock {
+  min-width: 74px;
+  min-height: 58px;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  border: 1px solid #d5dee6;
+  border-radius: 7px;
+  padding: 7px;
+  background: #f8fafb;
+}
+
+.dayBlock strong,
+.dayBlock span,
+.dayBlock em {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dayBlock strong {
+  color: #52616b;
+  font-size: 11px;
+}
+
+.dayBlock span {
+  font-weight: 750;
+  font-size: 13px;
+}
+
+.dayBlock em {
+  color: #64748b;
+  font-size: 10px;
+  font-style: normal;
+}
+
+.dayBlock.win {
+  border-color: #9bd8bf;
+  background: #ecfdf5;
+}
+
+.dayBlock.loss {
+  border-color: #f0aaa4;
+  background: #fff1f2;
+}
+
+.dayBlock.flat {
+  background: #f8fafb;
+}
+
 .sectionTitle {
   margin: 0 0 8px;
   font-size: 14px;
@@ -364,14 +800,61 @@ input, select {
   font-size: 12px;
 }
 
-.targetLine {
+.targetPicker {
   display: grid;
-  grid-template-columns: 1fr 76px;
   gap: 8px;
-  align-items: center;
-  margin-bottom: 10px;
   color: #60717d;
   font-size: 13px;
+}
+
+.targetPicker > span {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+}
+
+.targetPicker > div {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(54px, 1fr));
+  gap: 7px;
+}
+
+.targetPicker button {
+  min-height: 58px;
+  display: grid;
+  align-content: center;
+  gap: 2px;
+  padding: 6px;
+  border-color: #d5dee6;
+  background: #f8fafb;
+}
+
+.targetPicker button strong,
+.targetPicker button small {
+  display: block;
+  line-height: 1.1;
+}
+
+.targetPicker button strong {
+  font-size: 17px;
+  letter-spacing: 0;
+}
+
+.targetPicker button small {
+  color: #64748b;
+  font-size: 10px;
+}
+
+.targetPicker button.active {
+  border-color: #0f766e;
+  background: #e7f8f4;
+  color: #064e3b;
+  box-shadow: inset 0 0 0 1px #0f766e;
+}
+
+.targetPicker button.active small {
+  color: #047857;
 }
 
 .switch input { display: none; }
@@ -544,30 +1027,75 @@ summary { cursor: pointer; font-weight: 650; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 @media (max-width: 1120px) {
-  .grid, .grid.two, .strategyGrid, .tradeGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .formGrid, .toolbar, .miniGrid, .actionGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid, .grid.two, .strategyGrid, .tradeGrid, .instrumentCards, .positionStrip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .formGrid, .toolbar, .miniGrid, .actionGrid, .workflowSteps, .targetStatGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .instrumentToolbar { grid-template-columns: 1fr; }
+  .toolbarSpan { grid-column: 1 / -1; }
+  .variantLane { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 760px) {
-  .app { grid-template-columns: 1fr; }
-  .sidebar {
-    position: sticky;
-    top: 0;
-    z-index: 3;
-    display: flex;
-    gap: 7px;
-    overflow-x: auto;
-    padding: 9px;
+  .app {
+    grid-template-columns: 1fr;
+    padding-bottom: 78px;
   }
-  .brand { min-width: 150px; margin-bottom: 0; }
-  .nav { width: auto; white-space: nowrap; }
+  .sidebar {
+    position: fixed;
+    inset: auto 0 0 0;
+    height: auto;
+    z-index: 3;
+    display: grid;
+    grid-template-columns: 1fr;
+    border-top: 1px solid #d8e0e7;
+    border-right: 0;
+    padding: 7px;
+    background: rgba(20, 33, 41, .96);
+    backdrop-filter: blur(12px);
+  }
+  .brand { display: none; }
+  .navRail {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .nav {
+    min-width: 72px;
+    height: 58px;
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 4px;
+    margin: 0;
+    padding: 5px;
+    white-space: nowrap;
+    font-size: 11px;
+  }
+  .nav svg { width: 18px; height: 18px; }
+  .nav.active { box-shadow: inset 0 3px 0 #2dd4bf; }
   .topbar { align-items: flex-start; }
-  .main { padding: 14px; }
+  .main { padding: 14px 12px; }
   .topbar h1 { font-size: 20px; }
   .topbar p { font-size: 13px; }
-  .grid, .grid.two, .strategyGrid, .tradeGrid, .formGrid, .toolbar, .miniGrid, .miniGrid.twoCols, .actionGrid, .checkGrid {
+  .grid, .grid.two, .strategyGrid, .tradeGrid, .formGrid, .toolbar, .miniGrid, .miniGrid.twoCols, .actionGrid, .checkGrid, .workflowSteps, .targetStatGrid, .instrumentCards, .positionStrip {
     grid-template-columns: 1fr;
   }
+  .statusStrip { margin-top: 0; }
+  .segmented {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .segmented button { width: 100%; }
+  .instrumentHeader {
+    grid-template-columns: 1fr;
+  }
+  .instrumentScore {
+    min-width: 0;
+    text-align: left;
+  }
+  .toolbarSpan { grid-column: auto; }
+  .targetPicker > div { grid-template-columns: repeat(5, minmax(48px, 1fr)); }
+  .targetPicker button { min-height: 54px; }
   .strategyEdit {
     grid-template-columns: 1fr;
   }

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Activity,
+  AlertTriangle,
   BarChart3,
   Bell,
   Bolt,
@@ -12,6 +13,7 @@ import {
   FileText,
   Gauge,
   History,
+  IndianRupee,
   KeyRound,
   LineChart,
   LogOut,
@@ -24,6 +26,9 @@ import {
   Settings,
   ShieldCheck,
   Square,
+  Search,
+  Target,
+  TrendingDown,
   Trash2,
   TrendingUp,
   User,
@@ -200,6 +205,18 @@ function UserDashboard({ mobile, details, activeBroker, brokers, instance, refre
       <Metric icon={PlugZap} label="Connection" value={activeBroker?.is_connected ? 'Connected' : 'Disconnected'} />
       <Metric icon={MonitorDot} label="Instance" value={instance.status || 'stopped'} tone={instance.status === 'running' ? 'good' : 'muted'} />
       <Metric icon={Activity} label="Open Trades" value={details?.openOrders?.length || 0} />
+      <div className="panel wide workflowPanel">
+        <div className="panelHeader">
+          <h2>Today Setup</h2>
+          <span className="pill">{marketOpen() ? 'Trading window active' : 'Outside live window'}</span>
+        </div>
+        <div className="workflowSteps">
+          <StepCard icon={Wifi} label="Connect" value={activeBroker?.is_connected ? 'Ready' : 'Required'} tone={activeBroker?.is_connected ? 'good' : 'warn'} />
+          <StepCard icon={Play} label="Instance" value={instance.status === 'running' ? 'Running' : 'Stopped'} tone={instance.status === 'running' ? 'good' : 'muted'} />
+          <StepCard icon={TrendingUp} label="Strategies" value={`${details?.strategies?.filter?.((row) => row.enabled || row.subscribed)?.length || 0} enabled`} tone="neutral" />
+          <StepCard icon={ShieldCheck} label="Risk" value="Max 2 orders" tone="neutral" />
+        </div>
+      </div>
       <div className="panel wide">
         <div className="panelHeader">
           <h2>Controls</h2>
@@ -216,6 +233,13 @@ function UserDashboard({ mobile, details, activeBroker, brokers, instance, refre
           <Info label="Active Broker" value={activeBroker ? `${activeBroker.broker} · ${activeBroker.is_active ? 'active' : 'saved'}` : 'No broker configured'} />
           <Info label="Broker Accounts" value={brokers.length} />
           <Info label="Last Instance Update" value={instance.updated_at || '-'} />
+        </div>
+      </div>
+      <div className="panel wide">
+        <div className="panelHeader"><h2>Open Order Monitor</h2><span className="pill">live positions only</span></div>
+        <div className="positionStrip">
+          {(details?.openOrders || []).map((order) => <OrderMiniCard key={order.id || order.order_tag} order={order} />)}
+          {(!details?.openOrders || details.openOrders.length === 0) && <div className="emptyState">No running orders. Once a strategy enters, SL, target and order tag will appear here.</div>}
         </div>
       </div>
     </section>
@@ -327,12 +351,11 @@ function UserStrategies({ mobile, strategies, refresh, setNotice }) {
             <span>Minimum capital</span>
             <strong>{money(strategy.min_capital)}</strong>
           </div>
-          <div className="targetLine">
-            <span>Target</span>
-            <select value={strategy.target_level || 1} onChange={(e) => target(strategy, Number(e.target.value))}>
-              {[1, 2, 3, 4, 5].map((level) => <option key={level} value={level}>T{level}</option>)}
-            </select>
-          </div>
+          <TargetPicker
+            label="Exit Target"
+            value={strategy.target_level || 1}
+            onChange={(level) => target(strategy, level)}
+          />
           <div className="strategyFooter">
             <span className={strategy.subscribed ? 'statusDot active' : 'statusDot'}>{strategy.subscribed ? 'Subscribed' : 'Available'}</span>
             <button onClick={() => openHistory(strategy)}><History size={16} />History</button>
@@ -453,6 +476,15 @@ function AdminOverview({ state }) {
       <Metric icon={Users} label="Users" value={state.users?.length || 0} />
       <Metric icon={Activity} label="Open Orders" value={state.openOrders?.length || 0} />
       <Metric icon={ShieldCheck} label="Market Status" value={marketOpen() ? 'Open' : 'Closed'} tone={marketOpen() ? 'good' : 'muted'} />
+      <div className="panel wide workflowPanel">
+        <div className="panelHeader"><h2>Today Workflow</h2><span className="pill">IST</span></div>
+        <div className="workflowSteps">
+          <Info label="08:00-09:10" value="Users connect broker and start instance" />
+          <Info label="09:14" value="Fetch day open and calculate GANN levels" />
+          <Info label="09:15-15:00" value="15m candles, entries, websocket exits" />
+          <Info label="15:15" value="Force close intraday orders" />
+        </div>
+      </div>
       <div className="panel wide">
         <div className="panelHeader"><h2>Connected Users</h2><span className="pill">{connected} brokers · {running} instances</span></div>
         <DataTable rows={state.users || []} columns={['mobile', 'name', 'brokers', 'strategies', 'instance_status', 'active_trades', 'day_pnl']} highlightPnl />
@@ -463,8 +495,19 @@ function AdminOverview({ state }) {
 
 function AdminInstruments({ instruments, refresh, setNotice }) {
   const [symbol, setSymbol] = useState('');
+  const [query, setQuery] = useState('');
+  const [category, setCategory] = useState('all');
   const [expanded, setExpanded] = useState(null);
   const [trend, setTrend] = useState([]);
+  const filtered = useMemo(() => {
+    const q = query.trim().toUpperCase();
+    return instruments.filter((item) => {
+      const categoryMatch = category === 'all' || item.category === category;
+      const queryMatch = !q || item.symbol?.includes(q);
+      return categoryMatch && queryMatch;
+    });
+  }, [instruments, query, category]);
+  const featured = filtered.slice(0, 12);
   const add = async () => {
     await api('/api/admin/instruments', { method: 'POST', body: { symbol } });
     setSymbol('');
@@ -486,16 +529,34 @@ function AdminInstruments({ instruments, refresh, setNotice }) {
     }
   };
   return (
-    <section className="panel">
-      <div className="panelHeader"><h2>Instrument Universe</h2><button className="primary" onClick={add} disabled={!symbol}><Plus size={16} />Add</button></div>
-      <div className="toolbar compact"><input placeholder="Instrument name" value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} /></div>
-      <DataTable rows={instruments} columns={['symbol', 'category', 'latest_ha_swing_trend', 'continuation_days', 'latest_stop_loss', 'last_sync_at', 'sync_status']} action={(row) => (
-        <div className="buttonCluster">
-          <button onClick={() => toggleTrend(row)}><LineChart size={16} /></button>
-          <SyncBar value={row.sync_progress} status={row.sync_status} />
+    <section className="instrumentLayout">
+      <div className="panel wide">
+        <div className="panelHeader"><h2>Instrument Universe</h2><button className="primary" onClick={add} disabled={!symbol}><Plus size={16} />Add</button></div>
+        <div className="instrumentToolbar">
+          <label className="searchField">
+            <Search size={15} />
+            <input placeholder="Search symbol" value={query} onChange={(e) => setQuery(e.target.value.toUpperCase())} />
+          </label>
+          <div className="segmented">
+            {['all', 'stock', 'index', 'commodity'].map((item) => <button key={item} className={category === item ? 'active' : ''} onClick={() => setCategory(item)}>{optionLabel(item)}</button>)}
+          </div>
+          <input className="symbolInput" placeholder="Add instrument" value={symbol} onChange={(e) => setSymbol(e.target.value.toUpperCase())} />
         </div>
-      )} />
-      {expanded && <TrendBlocks symbol={expanded} rows={trend} />}
+      </div>
+      <div className="instrumentCards">
+        {featured.map((item) => <InstrumentSignalCard key={item.symbol} item={item} active={expanded === item.symbol} onClick={() => toggleTrend(item)} />)}
+        {featured.length === 0 && <div className="emptyState wide">No instruments match this filter.</div>}
+      </div>
+      <div className="panel wide">
+        <div className="panelHeader"><h2>Resolver & Sync Table</h2><span className="pill">{filtered.length} visible</span></div>
+        <DataTable rows={filtered} columns={['symbol', 'category', 'latest_ha_swing_trend', 'continuation_days', 'latest_stop_loss', 'last_sync_at', 'sync_status']} action={(row) => (
+          <div className="buttonCluster">
+            <button onClick={() => toggleTrend(row)}><LineChart size={16} /></button>
+            <SyncBar value={row.sync_progress} status={row.sync_status} />
+          </div>
+        )} />
+        {expanded && <TrendBlocks symbol={expanded} rows={trend} />}
+      </div>
     </section>
   );
 }
@@ -615,38 +676,139 @@ function AdminStrategies({ strategies, instruments, setNotice, refresh }) {
 function Backtests({ instruments, setNotice }) {
   const today = new Date().toISOString().slice(0, 10);
   const monthAgo = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
-  const [form, setForm] = useState({ symbol: instruments[0]?.symbol || 'SBIN', rangeFrom: monthAgo, rangeTo: today, useEma: true, sameCandlePolicy: 'SL_FIRST' });
-  const [result, setResult] = useState([]);
-  const run = async (strategy) => {
-    const endpoint = strategy === 'matrix'
-      ? '/api/admin/backtest/matrix'
-      : strategy === 'swing'
-        ? '/api/admin/backtest/swing'
-        : strategy === 'swing-ha-doji'
-          ? '/api/admin/backtest/swing-ha-doji'
-          : strategy === 'intraday-ha-doji'
-            ? '/api/admin/backtest/intraday-ha-doji'
-            : '/api/admin/backtest/intraday';
-    const res = await api(endpoint, { method: 'POST', body: { ...form, targetLevel: 1 } });
+  const [form, setForm] = useState({ symbol: instruments[0]?.symbol || 'SBIN', category: '', rangeFrom: monthAgo, rangeTo: today, useEma: true, sameCandlePolicy: 'SL_FIRST' });
+  const [result, setResult] = useState({ summary: [], instruments: [] });
+  const [expanded, setExpanded] = useState(null);
+  const run = async () => {
+    const body = cleanBacktestPayload(form);
+    const res = await api('/api/admin/backtest/matrix', { method: 'POST', body });
     setResult(res.data || []);
-    setNotice('Backtest completed.');
+    const count = res.data?.instruments?.length || 0;
+    setExpanded(res.data?.instruments?.[0]?.symbol || null);
+    setNotice(`Backtest completed for ${count} instrument${count === 1 ? '' : 's'}.`);
   };
+  const summary = result.summary || [];
+  const instrumentRows = result.instruments || [];
   return (
-    <section className="panel">
-      <div className="panelHeader"><h2>Backtest</h2></div>
-      <div className="toolbar">
-        <select value={form.symbol} onChange={(e) => setForm({ ...form, symbol: e.target.value })}>{instruments.map((item) => <option key={item.symbol}>{item.symbol}</option>)}</select>
-        <input type="date" value={form.rangeFrom} onChange={(e) => setForm({ ...form, rangeFrom: e.target.value })} />
-        <input type="date" value={form.rangeTo} onChange={(e) => setForm({ ...form, rangeTo: e.target.value })} />
-        <Toggle label="EMA" value={form.useEma} onChange={(value) => setForm({ ...form, useEma: value })} />
-        <button className="primary" onClick={() => run('intraday')}><BarChart3 size={16} />Intraday</button>
-        <button className="primary" onClick={() => run('intraday-ha-doji')}><BarChart3 size={16} />HA Doji 15m</button>
-        <button className="primary" onClick={() => run('swing')}><BarChart3 size={16} />Swing</button>
-        <button className="primary" onClick={() => run('swing-ha-doji')}><BarChart3 size={16} />Swing HA Doji</button>
-        <button onClick={() => run('matrix')}><Database size={16} />All Variants</button>
+    <section className="backtestLayout">
+      <div className="panel wide">
+        <div className="panelHeader">
+          <h2>Smart Backtest</h2>
+          <button className="primary" onClick={run} disabled={!form.rangeFrom || !form.rangeTo}><Database size={16} />Run All Strategies</button>
+        </div>
+        <div className="toolbar backtestToolbar">
+          <label className="field">
+            <span>Instrument</span>
+            <input list="backtest-symbols" value={form.symbol} onChange={(e) => setForm({ ...form, symbol: e.target.value.toUpperCase(), category: '' })} placeholder="SBIN" />
+            <datalist id="backtest-symbols">{instruments.map((item) => <option key={item.symbol} value={item.symbol} />)}</datalist>
+          </label>
+          <Select label="Group" value={form.category} onChange={(category) => setForm({ ...form, category, symbol: category ? '' : form.symbol })} options={['', 'stock', 'index', 'commodity']} />
+          <label className="field"><span>From</span><input type="date" value={form.rangeFrom} onChange={(e) => setForm({ ...form, rangeFrom: e.target.value })} /></label>
+          <label className="field"><span>To</span><input type="date" value={form.rangeTo} onChange={(e) => setForm({ ...form, rangeTo: e.target.value })} /></label>
+          <Toggle label="EMA Variants" value={form.useEma} onChange={(value) => setForm({ ...form, useEma: value })} />
+          <Select label="Same Candle" value={form.sameCandlePolicy} onChange={(sameCandlePolicy) => setForm({ ...form, sameCandlePolicy })} options={['SL_FIRST', 'TARGET_FIRST']} />
+        </div>
+        <div className="hint">Missing candle data is fetched once per instrument/resolution, then reused for every strategy and target-level variant.</div>
       </div>
-      <DataTable rows={result.map((row) => row.stats ? ({ symbol: row.symbol, ...row.stats }) : row)} columns={['variant', 'strategy', 'symbol', 'totalTrades', 'wins', 'losses', 'targetHits', 'slHits', 'successRatio', 'totalPnl', 'maxLoss', 'maxProfitDay', 'maxLossDay', 'maxDrawdown']} highlightPnl />
+
+      <div className="grid">
+        <Metric icon={LineChart} label="Instruments Tested" value={instrumentRows.length} />
+        <Metric icon={BarChart3} label="Variants" value={summary.length} />
+        <Metric icon={CheckCircle2} label="Target Hits" value={summary.reduce((sum, row) => sum + Number(row.targetHits || 0), 0)} tone="good" />
+        <Metric icon={ShieldCheck} label="SL Hits" value={summary.reduce((sum, row) => sum + Number(row.slHits || 0), 0)} tone="warn" />
+      </div>
+
+      <div className="backtestInstruments">
+        {instrumentRows.map((instrument) => (
+          <BacktestInstrument
+            key={instrument.symbol}
+            instrument={instrument}
+            expanded={expanded === instrument.symbol}
+            onToggle={() => setExpanded(expanded === instrument.symbol ? null : instrument.symbol)}
+          />
+        ))}
+        {instrumentRows.length === 0 && <div className="emptyState">Run a backtest to see instrument-level results.</div>}
+      </div>
+
+      <div className="panel wide">
+        <div className="panelHeader"><h2>All Variants Ranked</h2><span className="pill">best P/L first</span></div>
+        <DataTable rows={summary} columns={['variant', 'strategyName', 'symbol', 'targetLevel', 'useEma', 'totalTrades', 'targetHits', 'slHits', 'successRatio', 'totalPnl', 'maxLoss', 'maxDrawdown']} highlightPnl />
+      </div>
     </section>
+  );
+}
+
+function BacktestInstrument({ instrument, expanded, onToggle }) {
+  const best = instrument.bestVariant;
+  const bestStats = best?.stats || {};
+  return (
+    <article className="backtestInstrument panel">
+      <button className="instrumentHeader" onClick={onToggle}>
+        <div>
+          <strong>{instrument.symbol}</strong>
+          <span>{instrument.category} · 15m {instrument.candleCounts?.intraday || 0} · daily {instrument.candleCounts?.daily || 0}</span>
+        </div>
+        <div className="instrumentScore">
+          <b className={pnlClass(bestStats.totalPnl)}>{formatCell(bestStats.totalPnl)}</b>
+          <span>{formatCell(bestStats.successRatio)}% · {best?.variant || 'No trades'}</span>
+        </div>
+      </button>
+      {expanded && (
+        <div className="strategyResultStack">
+          {instrument.strategies.map((strategy) => <StrategyBacktestGroup key={strategy.code} strategy={strategy} />)}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function StrategyBacktestGroup({ strategy }) {
+  const best = strategy.bestVariant;
+  return (
+    <section className="strategyResult">
+      <div className="panelHeader">
+        <h2>{strategy.name}</h2>
+        <span className="pill">Best {best?.targetLevel ? `T${best.targetLevel}` : '-'} · {best?.useEma ? 'EMA' : 'No EMA'}</span>
+      </div>
+      <div className="targetStatGrid">
+        {strategy.targetStats.map((target) => (
+          <div className="targetStat" key={target.target}>
+            <strong>{target.target}</strong>
+            <span>{target.targetHits} TG · {target.slHits} SL</span>
+            <em className={pnlClass(target.pnl)}>{formatCell(target.pnl)}</em>
+          </div>
+        ))}
+      </div>
+      <div className="variantRail">
+        {strategy.variants.map((variant) => (
+          <div className="variantLane" key={variant.variant}>
+            <div className="variantLabel">
+              <strong>T{variant.targetLevel}</strong>
+              <span>{variant.useEma ? 'EMA' : 'No EMA'} · {variant.stats.totalTrades} trades · <b className={pnlClass(variant.stats.totalPnl)}>{formatCell(variant.stats.totalPnl)}</b></span>
+            </div>
+            <TradeDayBlocks blocks={variant.dayBlocks} />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function TradeDayBlocks({ blocks }) {
+  if (!blocks?.length) return <div className="dayBlocks empty"><span>No trades</span></div>;
+  return (
+    <div className="dayBlocks">
+      {blocks.map((block) => {
+        const tone = block.pnl > 0 ? 'win' : block.pnl < 0 ? 'loss' : 'flat';
+        return (
+          <div className={`dayBlock ${tone}`} key={block.day} title={`${block.day}\nP/L ${block.pnl}\nTrades ${block.trades}\nTG ${block.targetHits} SL ${block.slHits}\n${block.reasons.join(', ')}`}>
+            <strong>{block.day.slice(5)}</strong>
+            <span>{formatCell(block.pnl)}</span>
+            <em>{block.targetHits}T/{block.slHits}SL</em>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -786,12 +948,82 @@ function TradeCards({ trades }) {
   );
 }
 
+function InstrumentSignalCard({ item, active, onClick }) {
+  const tone = trendTone(item.latest_ha_swing_trend);
+  const synced = item.sync_status === 'ready' || item.sync_status === 'complete';
+  const Icon = tone === 'bullish' ? TrendingUp : tone === 'bearish' ? TrendingDown : LineChart;
+  return (
+    <button className={`instrumentCard ${tone} ${active ? 'active' : ''}`} onClick={onClick}>
+      <div className="instrumentCardTop">
+        <div>
+          <strong>{item.symbol}</strong>
+          <span>{item.category || 'unmapped'}</span>
+        </div>
+        <Icon size={18} />
+      </div>
+      <div className="signalRow">
+        <SignalPill icon={Clock} label={`${item.continuation_days || 0}d`} tone={tone} />
+        <SignalPill icon={Target} label={formatCell(item.latest_stop_loss)} tone="neutral" />
+        <SignalPill icon={synced ? CheckCircle2 : AlertTriangle} label={item.sync_status || 'pending'} tone={synced ? 'good' : 'warn'} />
+      </div>
+      <div className="syncLine"><span style={{ width: `${Number(item.sync_progress || 0)}%` }} /></div>
+    </button>
+  );
+}
+
+function SignalPill({ icon: Icon, label, tone = 'neutral' }) {
+  return <span className={`signalPill ${tone}`}><Icon size={12} />{label}</span>;
+}
+
+function StepCard({ icon: Icon, label, value, tone = 'neutral' }) {
+  return (
+    <div className={`stepCard ${tone}`}>
+      <Icon size={17} />
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function OrderMiniCard({ order }) {
+  const side = String(order.side || '').toUpperCase();
+  return (
+    <article className="orderMiniCard">
+      <div className="tradeTop">
+        <strong>{order.symbol}</strong>
+        <span className={side === 'SELL' ? 'pnl bad' : 'pnl good'}>{side || order.status}</span>
+      </div>
+      <div className="miniGrid twoCols">
+        <Info label="Entry" value={order.entry_price} />
+        <Info label="Target" value={order.target_price} />
+        <Info label="SL" value={order.stop_loss} />
+        <Info label="Tag" value={order.order_tag} />
+      </div>
+    </article>
+  );
+}
+
+function StatusStrip() {
+  const mins = currentIstMinutes();
+  const next = mins < 8 * 60 ? 'Users can connect from 08:00' : mins < 9 * 60 + 14 ? 'Prepare data-source login and user connections' : mins < 15 * 60 ? 'Live strategy and websocket monitoring' : mins < 15 * 60 + 30 ? 'Exit checks and intraday close' : 'Market workflow complete';
+  return (
+    <div className="statusStrip">
+      <SignalPill icon={ShieldCheck} label={marketOpen() ? 'Market open' : 'Market closed'} tone={marketOpen() ? 'good' : 'neutral'} />
+      <SignalPill icon={Clock} label={new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })} tone="neutral" />
+      <SignalPill icon={IndianRupee} label="Dry-run can be toggled in System" tone="warn" />
+      <span>{next}</span>
+    </div>
+  );
+}
+
 function Shell({ title, subtitle, nav, active, setActive, children, refresh, busy, logout }) {
   return (
     <div className="app">
       <aside className="sidebar">
         <div className="brand"><Bolt size={22} /><div><strong>AlgoBot</strong><span>Trading Console</span></div></div>
-        {nav.map(([id, Icon, label]) => <button key={id} className={active === id ? 'nav active' : 'nav'} onClick={() => setActive(id)}><Icon size={17} />{label}</button>)}
+        <nav className="navRail">
+          {nav.map(([id, Icon, label]) => <button key={id} className={active === id ? 'nav active' : 'nav'} onClick={() => setActive(id)} title={label}><Icon size={17} /><span>{label}</span></button>)}
+        </nav>
       </aside>
       <main className="main">
         <header className="topbar">
@@ -801,6 +1033,7 @@ function Shell({ title, subtitle, nav, active, setActive, children, refresh, bus
             <button className="iconButton" onClick={logout}><LogOut size={18} /></button>
           </div>
         </header>
+        <StatusStrip />
         {children}
       </main>
     </div>
@@ -835,7 +1068,7 @@ function DataTable({ rows = [], columns, action, highlightPnl }) {
 }
 
 function Select({ label, value, onChange, options }) {
-  return <label className="field"><span>{label}</span><select value={value} onChange={(e) => onChange(e.target.value)}>{options.map((option) => <option key={option} value={option}>{option}</option>)}</select></label>;
+  return <label className="field"><span>{label}</span><select value={value} onChange={(e) => onChange(e.target.value)}>{options.map((option) => <option key={option} value={option}>{optionLabel(option)}</option>)}</select></label>;
 }
 
 function Toggle({ label, value, onChange }) {
@@ -844,6 +1077,27 @@ function Toggle({ label, value, onChange }) {
 
 function NumberInput({ label, value, onChange }) {
   return <label className="field"><span>{label}</span><input type="number" value={value} onChange={(e) => onChange(Number(e.target.value))} /></label>;
+}
+
+function TargetPicker({ label, value, onChange }) {
+  return (
+    <div className="targetPicker">
+      <span>{label}</span>
+      <div>
+        {[1, 2, 3, 4, 5].map((level) => (
+          <button
+            key={level}
+            type="button"
+            className={Number(value) === level ? 'active' : ''}
+            onClick={() => onChange(level)}
+          >
+            <strong>T{level}</strong>
+            <small>{level === 1 ? 'Fast' : level === 5 ? 'Stretch' : `${level}x`}</small>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 function Modal({ title, children, onClose }) {
@@ -874,13 +1128,43 @@ function formatCell(value) {
   return String(value);
 }
 
+function optionLabel(option) {
+  if (option === '') return 'Single Instrument';
+  if (option === 'all') return 'All';
+  return option;
+}
+
 function pnlClass(value) {
   const num = Number(value || 0);
   return num > 0 ? 'goodText' : num < 0 ? 'badText' : '';
 }
 
+function cleanBacktestPayload(form) {
+  const payload = {
+    rangeFrom: form.rangeFrom,
+    rangeTo: form.rangeTo,
+    useEma: form.useEma,
+    sameCandlePolicy: form.sameCandlePolicy,
+  };
+  if (form.category) payload.category = form.category;
+  else if (form.symbol) payload.symbol = form.symbol;
+  return payload;
+}
+
 function money(value) {
   return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Number(value || 0));
+}
+
+function currentIstMinutes() {
+  const parts = new Intl.DateTimeFormat('en-IN', {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+    timeZone: 'Asia/Kolkata',
+  }).formatToParts(new Date());
+  const hour = Number(parts.find((part) => part.type === 'hour')?.value || 0);
+  const minute = Number(parts.find((part) => part.type === 'minute')?.value || 0);
+  return hour * 60 + minute;
 }
 
 async function api(path, options = {}) {
