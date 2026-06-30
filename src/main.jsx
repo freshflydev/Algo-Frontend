@@ -154,7 +154,7 @@ function UserApp({ session, logout, notice, setNotice }) {
 
   return (
     <Shell
-      title="User Dashboard"
+      title="Algo Trading"
       subtitle={notice || `Last login: ${session.lastLoginAt || 'first login'}`}
       nav={[
         ['dashboard', Gauge, 'Dashboard'],
@@ -175,6 +175,9 @@ function UserApp({ session, logout, notice, setNotice }) {
           activeBroker={activeBroker}
           brokers={brokers}
           instance={instance}
+          strategies={strategies}
+          trades={trades}
+          setTab={setTab}
           refresh={refresh}
           setNotice={setNotice}
           loadHistory={loadHistory}
@@ -188,7 +191,7 @@ function UserApp({ session, logout, notice, setNotice }) {
   );
 }
 
-function UserDashboard({ mobile, details, activeBroker, brokers, instance, refresh, setNotice, loadHistory }) {
+function UserDashboard({ mobile, details, activeBroker, brokers, instance, strategies = [], trades = [], setTab, refresh, setNotice, loadHistory }) {
   const startStop = async (action) => {
     try {
       await api(`/api/users/${mobile}/${action}`, { method: 'POST' });
@@ -211,26 +214,43 @@ function UserDashboard({ mobile, details, activeBroker, brokers, instance, refre
     setNotice('Broker disconnected.');
     refresh();
   };
+  const subscribed = strategies.filter((strategy) => strategy.subscribed);
+  const today = new Date().toISOString().slice(0, 10);
+  const todayTrades = trades.filter((trade) => String(trade.created_at || trade.entered_at || '').slice(0, 10) === today);
+  const todayPnl = todayTrades.reduce((sum, trade) => sum + pnlForTrade(trade), 0);
+  const openCount = details?.openOrders?.length || 0;
 
   return (
-    <section className="grid">
-      <Metric icon={Briefcase} label="Broker" value={activeBroker ? activeBroker.label || activeBroker.broker : 'Not set'} tone={activeBroker?.is_connected ? 'good' : 'warn'} />
-      <Metric icon={PlugZap} label="Connection" value={activeBroker?.is_connected ? 'Connected' : 'Disconnected'} />
-      <Metric icon={MonitorDot} label="Instance" value={instance.status || 'stopped'} tone={instance.status === 'running' ? 'good' : 'muted'} />
-      <Metric icon={Activity} label="Open Trades" value={details?.openOrders?.length || 0} />
-      <div className="panel wide workflowPanel">
-        <div className="panelHeader">
-          <h2>Today Setup</h2>
-          <span className="pill">{marketOpen() ? 'Trading window active' : 'Outside live window'}</span>
+    <section className="userHome">
+      <div className="statusStack">
+        <div className="statusRow">
+          <span className="roundIcon danger"><MonitorDot size={19} /></span>
+          <div><small>Algo Status</small><strong className={instance.status === 'running' ? 'goodText' : 'badText'}>{instance.status === 'running' ? 'Running' : 'Stopped'}</strong></div>
+          <button className={instance.status === 'running' ? 'danger' : 'primary'} onClick={() => startStop(instance.status === 'running' ? 'stop' : 'start')}>
+            {instance.status === 'running' ? <Square size={16} /> : <Play size={16} />}{instance.status === 'running' ? 'Stop' : 'Start'}
+          </button>
         </div>
-        <div className="workflowSteps">
-          <StepCard icon={Wifi} label="Connect" value={activeBroker?.is_connected ? 'Ready' : 'Required'} tone={activeBroker?.is_connected ? 'good' : 'warn'} />
-          <StepCard icon={Play} label="Instance" value={instance.status === 'running' ? 'Running' : 'Stopped'} tone={instance.status === 'running' ? 'good' : 'muted'} />
-          <StepCard icon={TrendingUp} label="Strategies" value={`${details?.strategies?.filter?.((row) => row.enabled || row.subscribed)?.length || 0} enabled`} tone="neutral" />
-          <StepCard icon={ShieldCheck} label="Risk" value="Max 2 orders" tone="neutral" />
+        <div className="statusRow">
+          <span className="roundIcon good"><User size={19} /></span>
+          <div><small>Broker Status</small><strong className={activeBroker?.is_connected ? 'goodText' : 'badText'}>{activeBroker?.is_connected ? 'Connected' : 'Disconnected'}</strong></div>
+          <span className="statusTime">{activeBroker?.connected_at || 'Connect daily'}</span>
         </div>
       </div>
-      <div className="panel wide">
+
+      <div className="summaryGrid">
+        <Metric icon={TrendingUp} label="Active Strategies" value={subscribed.length} tone="good" />
+        <Metric icon={IndianRupee} label="Today's P&L" value={money(todayPnl)} tone={todayPnl >= 0 ? 'good' : 'warn'} />
+        <Metric icon={Activity} label="Open Trades" value={openCount} />
+        <Metric icon={ShieldCheck} label="Risk Limit" value="2 Orders" />
+      </div>
+
+      <div className="userTileGrid">
+        <button className="userTile" onClick={() => setTab('broker')}><span className="tileIcon"><User size={28} /></span><strong>Brokers</strong></button>
+        <button className="userTile" onClick={() => setTab('trades')}><span className="tileIcon good"><BarChart3 size={28} /></span><strong>Trade Summary</strong></button>
+        <button className="userTile" onClick={() => setTab('strategy')}><span className="tileIcon warn"><Database size={28} /></span><strong>Strategy Subscriptions</strong></button>
+      </div>
+
+      <div className="panel wide controlPanel">
         <div className="panelHeader">
           <h2>Controls</h2>
           <button onClick={loadHistory}><History size={16} />Login History</button>
@@ -286,8 +306,8 @@ function UserBrokers({ mobile, brokers, settings, refresh, setNotice }) {
   };
 
   return (
-    <section className="grid two">
-      <div className="panel">
+    <section className="mobileFlow">
+      <div className="panel brokerFormCard">
         <div className="panelHeader"><h2>{form.id ? 'Modify Broker' : 'Add Broker'}</h2><button className="primary" onClick={save}><Save size={16} />Save</button></div>
         <div className="formStack">
           <Select label="Broker" value={form.broker} onChange={(broker) => setForm({ ...form, broker, redirectUrl: `${API}/api/callback/${broker}` })} options={['fyers', 'upstox']} />
@@ -300,24 +320,23 @@ function UserBrokers({ mobile, brokers, settings, refresh, setNotice }) {
           Add server IP <b>{serverIp}</b> in the broker app settings. Use callback URL <b>{callback}</b>.
         </div>
       </div>
-      <div className="panel">
-        <div className="panelHeader"><h2>Added Brokers</h2></div>
-        <div className="list">
+      <div className="brokerCards">
           {brokers.map((broker) => (
-            <div className="listRow" key={broker.id}>
-              <div>
+            <article className="brokerCard" key={broker.id}>
+              <button className="cardEdit" onClick={() => setForm(toBrokerForm(broker))}><Settings size={18} /></button>
+              <div className="brokerMain">
                 <strong>{broker.label || broker.broker}</strong>
-                <span>{broker.broker} · {broker.is_connected ? 'connected' : 'disconnected'} · expires {broker.token_expires_at || '-'}</span>
+                <span>API Key: {maskValue(broker.api_key)}</span>
+                <span>Status: <b className={broker.is_connected ? 'goodText' : 'badText'}>{broker.is_connected ? 'ACTIVE' : 'INACTIVE'}</b></span>
+                <small>Updated on: {broker.updated_at || '-'}</small>
               </div>
               <div className="buttonCluster">
-                <button className={broker.is_active ? 'success' : ''} onClick={() => activate(broker.id)}><CheckCircle2 size={16} /></button>
-                <button onClick={() => setForm(toBrokerForm(broker))}><Settings size={16} /></button>
+                <button className={broker.is_active ? 'success' : ''} onClick={() => activate(broker.id)}><CheckCircle2 size={16} />{broker.is_active ? 'Active' : 'Set Active'}</button>
                 <button className="danger ghost" onClick={() => remove(broker.id)}><Trash2 size={16} /></button>
               </div>
-            </div>
+            </article>
           ))}
           {brokers.length === 0 && <div className="emptyState">No broker accounts yet.</div>}
-        </div>
       </div>
     </section>
   );
@@ -353,27 +372,36 @@ function UserStrategies({ mobile, strategies, refresh, setNotice }) {
 
   return (
     <>
-      <section className="strategyGrid">
+      <section className="mobileFlow">
         {activeStrategies.map((strategy) => (
-          <article className="strategyCard userStrategyCard" key={strategy.code}>
-          <div className="panelHeader">
-            <h2>{strategy.name}</h2>
-            <label className="switch"><input type="checkbox" checked={Boolean(strategy.subscribed)} onChange={(e) => save(strategy, e.target.checked)} /><span /></label>
-          </div>
-          <div className="strategyHero">
-            <span>Minimum capital</span>
-            <strong>{money(strategy.min_capital)}</strong>
-          </div>
-          <TargetPicker
-            label="Exit Target"
-            value={strategy.target_level || 1}
-            onChange={(level) => target(strategy, level)}
-          />
-          <div className="strategyFooter">
-            <span className={strategy.subscribed ? 'statusDot active' : 'statusDot'}>{strategy.subscribed ? 'Subscribed' : 'Available'}</span>
-            <button onClick={() => openHistory(strategy)}><History size={16} />History</button>
-          </div>
-        </article>
+          <article className="subscriptionCard" key={strategy.code}>
+            <div className="subscriptionTop">
+              <div>
+                <strong>{strategy.name}</strong>
+                <span>{strategy.mode} · {strategy.timeframe} · {strategy.direction}</span>
+              </div>
+              <b className={strategy.subscribed ? 'badge active' : 'badge inactive'}>{strategy.subscribed ? 'ACTIVE' : 'INACTIVE'}</b>
+            </div>
+            <div className="subscriptionFacts">
+              <span>Lot Size: 1</span>
+              <span>Min Fund: {money(strategy.min_capital)}</span>
+            </div>
+            <div className="strategyChips">
+              <span>Type: Full Exit At Target</span>
+              <span>Final Exit At: Target {strategy.target_level || 1}</span>
+            </div>
+            <TargetPicker
+              label="Final Exit At"
+              value={strategy.target_level || 1}
+              onChange={(level) => target(strategy, level)}
+            />
+            <div className="strategyFooter">
+              <button onClick={() => openHistory(strategy)}><History size={16} />History</button>
+              <button className={strategy.subscribed ? 'danger ghost' : 'primary'} onClick={() => save(strategy, !strategy.subscribed)}>
+                {strategy.subscribed ? 'Unsubscribe' : 'Subscribe'}
+              </button>
+            </div>
+          </article>
         ))}
         {activeStrategies.length === 0 && <div className="emptyState">No active strategies are available right now.</div>}
       </section>
@@ -605,6 +633,9 @@ function AdminBrokerPanel({ settings, setNotice, refresh }) {
     data_source_access_token: settings.data_source_access_token || '',
     data_source_refresh_token: settings.data_source_refresh_token || '',
     data_source_status: settings.data_source_status || 'disconnected',
+    server_static_ip: settings.server_static_ip || '',
+    frontend_url: settings.frontend_url || 'https://algo.foodcrisis.in',
+    public_api_base: settings.public_api_base || 'https://algoapi.foodcrisis.in',
   });
   const save = async () => {
     await api('/api/admin/settings', { method: 'POST', body: form });
@@ -975,8 +1006,17 @@ function TradeCards({ trades, mobile, setTrades, setNotice }) {
     const dateMatch = !date || dateValue === date;
     return categoryMatch && dateMatch;
   });
+  const netPnl = filteredTrades.reduce((sum, trade) => sum + pnlForTrade(trade), 0);
+  const wins = filteredTrades.filter((trade) => pnlForTrade(trade) > 0).length;
+  const avgPnl = filteredTrades.length ? netPnl / filteredTrades.length : 0;
   return (
     <section className="tradeSection">
+      <div className="tradeSummaryHero">
+        <Info label="Total Trades" value={filteredTrades.length} />
+        <Info label="Net P&L" value={money(netPnl)} />
+        <Info label="Win Rate" value={`${filteredTrades.length ? (wins / filteredTrades.length * 100).toFixed(1) : '0.0'}%`} />
+        <Info label="Avg P&L" value={money(avgPnl)} />
+      </div>
       <div className="panel">
         <div className="panelHeader"><h2>Trade History</h2><span className="pill">{filteredTrades.length} records</span></div>
         <div className="instrumentToolbar">
@@ -995,7 +1035,7 @@ function TradeCards({ trades, mobile, setTrades, setNotice }) {
       </div>
       <div className="tradeGrid">
       {filteredTrades.map((trade) => {
-        const pnl = Number((trade.exit_price || trade.entry_price || 0) - (trade.entry_price || 0));
+        const pnl = pnlForTrade(trade);
         const hit = String(trade.exit_reason || '').includes('TARGET') ? 'target' : String(trade.exit_reason || '').includes('SL') ? 'sl' : 'live';
         return (
           <article className="tradeCard" key={trade.id || trade.order_tag}>
@@ -1093,8 +1133,9 @@ function StatusStrip() {
 }
 
 function Shell({ title, subtitle, nav, active, setActive, children, refresh, busy, logout }) {
+  const mode = title === 'Algo Trading' ? 'userMode' : 'adminMode';
   return (
-    <div className="app">
+    <div className={`app ${mode}`}>
       <aside className="sidebar">
         <div className="brand"><Bolt size={22} /><div><strong>AlgoBot</strong><span>Trading Console</span></div></div>
         <nav className="navRail">
@@ -1228,7 +1269,20 @@ function cleanBacktestPayload(form) {
 }
 
 function money(value) {
-  return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 0 }).format(Number(value || 0));
+  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(Number(value || 0));
+}
+
+function maskValue(value = '') {
+  const text = String(value || '');
+  if (!text) return '-';
+  return `${text.slice(0, 4)}${'*'.repeat(Math.min(Math.max(text.length - 4, 4), 16))}`;
+}
+
+function pnlForTrade(trade) {
+  const entry = Number(trade.entry_price || 0);
+  const exit = Number(trade.exit_price || trade.entry_price || 0);
+  const qty = Number(trade.quantity || 1);
+  return trade.side === 'SELL' ? (entry - exit) * qty : (exit - entry) * qty;
 }
 
 function currentIstMinutes() {
