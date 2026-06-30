@@ -38,7 +38,7 @@ import {
 } from 'lucide-react';
 import './styles.css';
 
-const API = import.meta.env.VITE_API_BASE || 'http://127.0.0.1:8080';
+const API = import.meta.env.VITE_API_BASE || 'https://algoapi.foodcrisis.in';
 
 function App() {
   const [session, setSession] = useState(() => JSON.parse(localStorage.getItem('algo.session') || 'null'));
