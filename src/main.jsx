@@ -39,6 +39,7 @@ import {
 import './styles.css';
 
 const API = import.meta.env.VITE_API_BASE || 'https://algoapi.foodcrisis.in';
+const apiCache = new Map();
 
 function App() {
   const [session, setSession] = useState(() => JSON.parse(localStorage.getItem('algo.session') || 'null'));
@@ -122,18 +123,20 @@ function UserApp({ session, logout, notice, setNotice }) {
   const refresh = async () => {
     setBusy(true);
     try {
-      const [detailRes, brokerRes, strategyRes, tradeRes, settingsRes] = await Promise.all([
+      const [detailRes, brokerRes, strategyRes, tradeRes, settingsRes] = await settleApi([
         api(`/api/users/${mobile}`),
         api(`/api/users/${mobile}/brokers`),
         api(`/api/users/${mobile}/strategies`),
         api(`/api/admin/trades?mobile=${mobile}`),
         api('/api/admin/settings'),
       ]);
-      setDetails(detailRes.data);
-      setBrokers(brokerRes.data || []);
-      setStrategies(strategyRes.data || []);
-      setTrades(tradeRes.data || []);
-      setSettings(settingsRes.data || {});
+      if (detailRes.ok) setDetails(detailRes.data);
+      if (brokerRes.ok) setBrokers(brokerRes.data || []);
+      if (strategyRes.ok) setStrategies(strategyRes.data || []);
+      if (tradeRes.ok) setTrades(tradeRes.data || []);
+      if (settingsRes.ok) setSettings(settingsRes.data || {});
+      const failed = [detailRes, brokerRes, strategyRes, tradeRes, settingsRes].find((item) => !item.ok);
+      if (failed) setNotice(failed.error);
     } catch (error) {
       setNotice(error.message);
     } finally {
@@ -435,7 +438,7 @@ function AdminApp({ session, logout, notice, setNotice }) {
   const refresh = async () => {
     setBusy(true);
     try {
-      const [settings, instruments, trades, openOrders, brokers, instances, performance, backtests, logs, users, strategies] = await Promise.all([
+      const [settings, instruments, trades, openOrders, brokers, instances, performance, backtests, logs, users, strategies] = await settleApi([
         api('/api/admin/settings'),
         api('/api/admin/instruments'),
         api('/api/admin/trades'),
@@ -449,18 +452,20 @@ function AdminApp({ session, logout, notice, setNotice }) {
         api('/api/admin/strategies'),
       ]);
       setState({
-        settings: settings.data || {},
-        instruments: instruments.data || [],
-        trades: trades.data || [],
-        openOrders: openOrders.data || [],
-        brokers: brokers.data || [],
-        instances: instances.data || [],
-        performance: performance.data || [],
-        backtests: backtests.data || [],
-        logs: logs.data || [],
-        users: users.data || [],
-        strategies: strategies.data || [],
+        settings: settings.ok ? settings.data || {} : state.settings || {},
+        instruments: instruments.ok ? instruments.data || [] : state.instruments || [],
+        trades: trades.ok ? trades.data || [] : state.trades || [],
+        openOrders: openOrders.ok ? openOrders.data || [] : state.openOrders || [],
+        brokers: brokers.ok ? brokers.data || [] : state.brokers || [],
+        instances: instances.ok ? instances.data || [] : state.instances || [],
+        performance: performance.ok ? performance.data || [] : state.performance || [],
+        backtests: backtests.ok ? backtests.data || [] : state.backtests || [],
+        logs: logs.ok ? logs.data || [] : state.logs || [],
+        users: users.ok ? users.data || [] : state.users || [],
+        strategies: strategies.ok ? strategies.data || [] : state.strategies || [],
       });
+      const failed = [settings, instruments, trades, openOrders, brokers, instances, performance, backtests, logs, users, strategies].find((item) => !item.ok);
+      if (failed) setNotice(failed.error);
     } catch (error) {
       setNotice(error.message);
     } finally {
@@ -1298,14 +1303,51 @@ function currentIstMinutes() {
 }
 
 async function api(path, options = {}) {
-  const response = await fetch(`${API}${path}`, {
-    method: options.method || 'GET',
-    headers: { 'Content-Type': 'application/json' },
-    body: options.body ? JSON.stringify(options.body) : undefined,
+  const method = options.method || 'GET';
+  const cacheKey = method === 'GET' ? path : null;
+  const cached = cacheKey ? apiCache.get(cacheKey) : null;
+  if (cached && Date.now() - cached.time < 15000) return cached.value;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), options.timeout || 20000);
+  try {
+    const response = await fetch(`${API}${path}`, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      body: options.body ? JSON.stringify(options.body) : undefined,
+      signal: controller.signal,
+    });
+    const text = await response.text();
+    const json = text ? safeJson(text) : {};
+    if (!response.ok || json.ok === false) throw new Error(json.error || statusMessage(response.status));
+    if (cacheKey) apiCache.set(cacheKey, { time: Date.now(), value: json });
+    if (method !== 'GET') apiCache.clear();
+    return json;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function settleApi(requests) {
+  const results = await Promise.allSettled(requests);
+  return results.map((result) => {
+    if (result.status === 'fulfilled') return { ok: true, data: result.value.data };
+    return { ok: false, error: result.reason?.message || 'API request failed' };
   });
-  const json = await response.json();
-  if (!response.ok || json.ok === false) throw new Error(json.error || 'API request failed');
-  return json;
+}
+
+function statusMessage(status) {
+  if (status === 503) return 'Backend is temporarily unavailable. Please retry after server restart.';
+  if (status === 502) return 'Backend gateway is unavailable.';
+  if (status === 504) return 'Backend request timed out.';
+  return 'API request failed';
+}
+
+function safeJson(value) {
+  try {
+    return JSON.parse(value || '{}');
+  } catch {
+    return {};
+  }
 }
 
 createRoot(document.getElementById('root')).render(<App />);
