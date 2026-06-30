@@ -560,6 +560,21 @@ function AdminInstruments({ instruments, refresh, setNotice }) {
     setNotice('Instrument added. Daily data sync is marked for backend fetch.');
     refresh();
   };
+  const resync = async (row) => {
+    const rangeTo = new Date().toISOString().slice(0, 10);
+    const rangeFrom = new Date(Date.now() - 65 * 86400000).toISOString().slice(0, 10);
+    const res = await api('/api/admin/candles/fetch', {
+      method: 'POST',
+      body: { symbol: row.symbol, resolution: 'D', rangeFrom, rangeTo },
+    });
+    const result = res.data?.[0];
+    if (result?.status === 'error') {
+      setNotice(`${row.symbol} sync failed: ${result.error}`);
+    } else {
+      setNotice(`${row.symbol} synced: ${result?.count || 0} daily candles stored.`);
+    }
+    refresh();
+  };
   const toggleTrend = async (row) => {
     if (expanded === row.symbol) {
       setExpanded(null);
@@ -598,6 +613,7 @@ function AdminInstruments({ instruments, refresh, setNotice }) {
         <DataTable rows={filtered} columns={['symbol', 'category', 'candle_status', 'daily_candle_count', 'intraday_candle_count', 'latest_candle_date', 'latest_ha_swing_trend', 'continuation_days', 'latest_stop_loss', 'sync_status']} action={(row) => (
           <div className="buttonCluster">
             <button onClick={() => toggleTrend(row)}><LineChart size={16} /></button>
+            <button onClick={() => resync(row)} title="Resync daily candles"><RefreshCw size={16} /></button>
             <SyncBar value={row.sync_progress} status={row.sync_status} />
           </div>
         )} />
@@ -879,10 +895,15 @@ function TradeDayBlocks({ blocks }) {
 }
 
 function Performance({ performance, backtests }) {
+  const bestStocks = useMemo(() => summarizeBestBacktests(backtests), [backtests]);
   return (
     <section className="grid two">
       <div className="panel"><div className="panelHeader"><h2>Strategy Stats</h2></div><DataTable rows={performance} columns={['strategy', 'runs', 'totalTrades', 'wins', 'losses', 'successRatio', 'totalPnl', 'maxDrawdown']} highlightPnl /></div>
-      <div className="panel"><div className="panelHeader"><h2>Best Stocks</h2></div><DataTable rows={backtests.map((row) => ({ ...row, ...row.stats }))} columns={['strategy', 'symbol', 'range_from', 'range_to', 'successRatio', 'totalPnl', 'created_at']} highlightPnl /></div>
+      <div className="panel">
+        <div className="panelHeader"><h2>Best Stocks</h2><span className="pill">trade-backed</span></div>
+        <DataTable rows={bestStocks} columns={['strategy', 'symbol', 'runs', 'totalTrades', 'successRatio', 'totalPnl', 'bestRange']} highlightPnl />
+        {bestStocks.length === 0 && <div className="hint">No meaningful best stock yet. Run backtests after candle data is synced; zero-trade rows are hidden here.</div>}
+      </div>
     </section>
   );
 }
@@ -1259,7 +1280,41 @@ function marketOpen() {
 function formatCell(value) {
   if (value === null || value === undefined || value === '') return '-';
   if (typeof value === 'number') return Number.isInteger(value) ? value : value.toFixed(2);
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) return value.slice(0, 10);
   return String(value);
+}
+
+function summarizeBestBacktests(backtests = []) {
+  const grouped = new Map();
+  for (const row of backtests) {
+    const stats = row.stats || {};
+    const trades = Number(stats.totalTrades || 0);
+    if (trades <= 0) continue;
+    const key = `${row.strategy}:${row.symbol}`;
+    const current = grouped.get(key) || {
+      strategy: row.strategy,
+      symbol: row.symbol,
+      runs: 0,
+      totalTrades: 0,
+      wins: 0,
+      totalPnl: 0,
+      bestRange: '',
+    };
+    current.runs += 1;
+    current.totalTrades += trades;
+    current.wins += Number(stats.wins || 0);
+    current.totalPnl += Number(stats.totalPnl || 0);
+    current.bestRange = `${formatCell(row.range_from)} to ${formatCell(row.range_to)}`;
+    grouped.set(key, current);
+  }
+  return [...grouped.values()]
+    .map((row) => ({
+      ...row,
+      totalPnl: Number(row.totalPnl.toFixed(2)),
+      successRatio: row.totalTrades ? Number((row.wins / row.totalTrades * 100).toFixed(2)) : 0,
+    }))
+    .sort((a, b) => b.totalPnl - a.totalPnl || b.successRatio - a.successRatio)
+    .slice(0, 20);
 }
 
 function optionLabel(option) {
