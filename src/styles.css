@@ -236,8 +236,23 @@ input, select {
 .ghost { background: transparent; }
 .danger { color: #b42318; }
 .iconButton { width: 38px; padding: 0; }
+.navSelect {
+  min-height: 38px;
+  max-width: 150px;
+  border: 1px solid #d9e2ea;
+  border-radius: 6px;
+  background: #fff;
+  padding: 0 8px;
+  color: #102033;
+  font-weight: 700;
+}
 
 .buttonCluster { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.inlineHeader {
+  margin-bottom: 10px;
+}
+.pill.good { background: #ecfdf5; color: #047857; }
+.pill.warn { background: #fff7ed; color: #c2410c; }
 .actionGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(130px, 1fr));

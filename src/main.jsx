@@ -70,24 +70,33 @@ function App() {
     setSession(null);
   };
 
-  if (!session) return <Login onLogin={login} notice={notice} setNotice={setNotice} />;
+  if (!session) return <Login onLogin={login} />;
   return session.role === 'admin'
     ? <AdminApp session={session} logout={logout} notice={notice} setNotice={setNotice} />
     : <UserApp session={session} logout={logout} notice={notice} setNotice={setNotice} />;
 }
 
-function Login({ onLogin, notice, setNotice }) {
+function Login({ onLogin }) {
   const [mobile, setMobile] = useState('');
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [backendOk, setBackendOk] = useState(null);
+
+  useEffect(() => {
+    api('/api/health')
+      .then(() => setBackendOk(true))
+      .catch(() => setBackendOk(false));
+  }, []);
 
   const submit = async (event) => {
     event.preventDefault();
     setBusy(true);
+    setError('');
     try {
       await onLogin(mobile, name);
     } catch (error) {
-      setNotice(error.message);
+      setError(error.message);
     } finally {
       setBusy(false);
     }
@@ -96,13 +105,15 @@ function Login({ onLogin, notice, setNotice }) {
   return (
     <main className="loginShell">
       <form className="loginPanel" onSubmit={submit}>
-        <div className="brandMark"><Bolt size={22} /><strong>AlgoBot</strong></div>
+        <div className="brandMark">
+          <Bolt size={22} /><strong>AlgoBot</strong>
+          <span className={`statusDot ${backendOk ? 'active' : ''}`}>{backendOk === null ? 'Checking API' : backendOk ? 'API online' : 'API offline'}</span>
+        </div>
         <h1>Welcome Back</h1>
-        <p>Secure access to your strategy subscriptions, broker connection, and trade history.</p>
         <input inputMode="numeric" placeholder="Mobile number" value={mobile} onChange={(e) => setMobile(e.target.value.replace(/\D/g, '').slice(0, 10))} />
         <input placeholder="Name, optional" value={name} onChange={(e) => setName(e.target.value)} />
         <button className="primary" disabled={mobile.length < 10 || busy}><KeyRound size={16} />Continue</button>
-        {notice && <div className="notice">{notice}</div>}
+        {error && <div className="notice">{error}</div>}
       </form>
     </main>
   );
@@ -147,8 +158,13 @@ function UserApp({ session, logout, notice, setNotice }) {
   useEffect(() => { refresh(); }, []);
 
   const loadHistory = async () => {
-    const res = await api(`/api/login-history?mobile=${mobile}&limit=20`);
-    setHistory(res.data || []);
+    setHistory((brokers || []).filter((broker) => broker.connected_at).map((broker) => ({
+      broker: broker.broker,
+      label: broker.label || broker.broker,
+      status: broker.is_connected ? 'connected' : 'disconnected',
+      connected_at: broker.connected_at,
+      updated_at: broker.updated_at,
+    })));
     setModal('history');
   };
 
@@ -189,7 +205,7 @@ function UserApp({ session, logout, notice, setNotice }) {
       {tab === 'broker' && <UserBrokers mobile={mobile} brokers={brokers} settings={settings} refresh={refresh} setNotice={setNotice} />}
       {tab === 'strategy' && <UserStrategies mobile={mobile} strategies={strategies} refresh={refresh} setNotice={setNotice} />}
       {tab === 'trades' && <TradeCards trades={trades} mobile={mobile} setTrades={setTrades} setNotice={setNotice} />}
-      {modal === 'history' && <Modal title="Last 20 Logins" onClose={() => setModal(null)}><DataTable rows={history} columns={['created_at', 'mobile', 'role', 'status', 'message']} /></Modal>}
+      {modal === 'history' && <Modal title="Broker Connect History" onClose={() => setModal(null)}><DataTable rows={history} columns={['broker', 'label', 'status', 'connected_at', 'updated_at']} /></Modal>}
     </Shell>
   );
 }
@@ -236,7 +252,9 @@ function UserDashboard({ mobile, details, activeBroker, brokers, instance, strat
         <div className="statusRow">
           <span className="roundIcon good"><User size={19} /></span>
           <div><small>Broker Status</small><strong className={activeBroker?.is_connected ? 'goodText' : 'badText'}>{activeBroker?.is_connected ? 'Connected' : 'Disconnected'}</strong></div>
-          <span className="statusTime">{activeBroker?.connected_at || 'Connect daily'}</span>
+          {activeBroker?.is_connected
+            ? <span className="statusTime">{formatCell(activeBroker.connected_at)}</span>
+            : <button className="primary" onClick={connect} disabled={!activeBroker}><Wifi size={16} />Connect</button>}
         </div>
       </div>
 
@@ -255,14 +273,11 @@ function UserDashboard({ mobile, details, activeBroker, brokers, instance, strat
 
       <div className="panel wide controlPanel">
         <div className="panelHeader">
-          <h2>Controls</h2>
-          <button onClick={loadHistory}><History size={16} />Login History</button>
-        </div>
-        <div className="actionGrid">
-          <button className="primary" onClick={connect} disabled={!activeBroker}><Wifi size={16} />Connect Broker</button>
-          <button onClick={disconnect} disabled={!activeBroker?.is_connected}><WifiOff size={16} />Disconnect</button>
-          <button onClick={() => startStop('start')}><Play size={16} />Start Instance</button>
-          <button onClick={() => startStop('stop')}><Square size={16} />Stop Instance</button>
+          <h2>Account</h2>
+          <div className="buttonCluster">
+            <button onClick={loadHistory}><History size={16} />Broker History</button>
+            <button onClick={disconnect} disabled={!activeBroker?.is_connected}><WifiOff size={16} />Disconnect</button>
+          </div>
         </div>
         <div className="miniGrid">
           <Info label="User" value={`${details?.user?.name || 'User'} · ${mobile}`} />
@@ -283,14 +298,15 @@ function UserDashboard({ mobile, details, activeBroker, brokers, instance, strat
 }
 
 function UserBrokers({ mobile, brokers, settings, refresh, setNotice }) {
-  const [form, setForm] = useState(emptyBroker());
+  const [form, setForm] = useState(null);
   const serverIp = settings?.server_static_ip || window.location.hostname || '127.0.0.1';
-  const callback = `${API}/api/callback/${form.broker}`;
+  const activeForm = form || emptyBroker();
+  const callback = `${API}/api/callback/${activeForm.broker}`;
 
   const save = async () => {
     try {
-      await api(`/api/users/${mobile}/broker`, { method: 'PUT', body: form });
-      setForm(emptyBroker(form.broker));
+      await api(`/api/users/${mobile}/broker`, { method: 'PUT', body: activeForm });
+      setForm(null);
       setNotice('Broker saved.');
       refresh();
     } catch (error) {
@@ -310,7 +326,11 @@ function UserBrokers({ mobile, brokers, settings, refresh, setNotice }) {
 
   return (
     <section className="mobileFlow">
-      <div className="panel brokerFormCard">
+      <div className="panelHeader inlineHeader">
+        <h2>My Brokers</h2>
+        <button className="primary" onClick={() => setForm(emptyBroker())}><Plus size={16} />Add</button>
+      </div>
+      {form && <div className="panel brokerFormCard">
         <div className="panelHeader"><h2>{form.id ? 'Modify Broker' : 'Add Broker'}</h2><button className="primary" onClick={save}><Save size={16} />Save</button></div>
         <div className="formStack">
           <Select label="Broker" value={form.broker} onChange={(broker) => setForm({ ...form, broker, redirectUrl: `${API}/api/callback/${broker}` })} options={['fyers', 'upstox']} />
@@ -322,7 +342,7 @@ function UserBrokers({ mobile, brokers, settings, refresh, setNotice }) {
         <div className="hint">
           Add server IP <b>{serverIp}</b> in the broker app settings. Use callback URL <b>{callback}</b>.
         </div>
-      </div>
+      </div>}
       <div className="brokerCards">
           {brokers.map((broker) => (
             <article className="brokerCard" key={broker.id}>
@@ -658,6 +678,19 @@ function AdminBrokerPanel({ settings, setNotice, refresh }) {
     frontend_url: settings.frontend_url || 'https://algo.foodcrisis.in',
     public_api_base: settings.public_api_base || 'https://algoapi.foodcrisis.in',
   });
+  useEffect(() => {
+    setForm({
+      data_source_broker: settings.data_source_broker || 'fyers',
+      data_source_api_key: settings.data_source_api_key || '',
+      data_source_secret_key: settings.data_source_secret_key || '',
+      data_source_access_token: settings.data_source_access_token || '',
+      data_source_refresh_token: settings.data_source_refresh_token || '',
+      data_source_status: settings.data_source_status || 'disconnected',
+      server_static_ip: settings.server_static_ip || '',
+      frontend_url: settings.frontend_url || 'https://algo.foodcrisis.in',
+      public_api_base: settings.public_api_base || 'https://algoapi.foodcrisis.in',
+    });
+  }, [settings]);
   const save = async () => {
     await api('/api/admin/settings', { method: 'POST', body: form });
     setNotice('Data source broker settings saved.');
@@ -682,16 +715,18 @@ function AdminBrokerPanel({ settings, setNotice, refresh }) {
         <div className="formStack">
           <Select label="Broker" value={form.data_source_broker} onChange={(v) => setForm({ ...form, data_source_broker: v })} options={['fyers']} />
           <input placeholder="API key" value={form.data_source_api_key} onChange={(e) => setForm({ ...form, data_source_api_key: e.target.value })} />
-          <input placeholder="Secret key" value={form.data_source_secret_key} onChange={(e) => setForm({ ...form, data_source_secret_key: e.target.value })} />
+          <input type="password" placeholder="Secret key" value={form.data_source_secret_key} onChange={(e) => setForm({ ...form, data_source_secret_key: e.target.value })} />
           <input placeholder="Server static IP" value={form.server_static_ip || ''} onChange={(e) => setForm({ ...form, server_static_ip: e.target.value })} />
           <input placeholder="Frontend URL" value={form.frontend_url || ''} onChange={(e) => setForm({ ...form, frontend_url: e.target.value })} />
           <input placeholder="Public API base" value={form.public_api_base || ''} onChange={(e) => setForm({ ...form, public_api_base: e.target.value })} />
         </div>
       </div>
       <div className="panel">
-        <div className="panelHeader"><h2>Status</h2><span className="pill">{form.data_source_status}</span></div>
+        <div className="panelHeader"><h2>Status</h2><span className={`pill ${form.data_source_status === 'connected' ? 'good' : 'warn'}`}>{form.data_source_status}</span></div>
         <div className="miniGrid twoCols">
           <Info label="Broker" value={form.data_source_broker} />
+          <Info label="API Key" value={maskValue(form.data_source_api_key)} />
+          <Info label="Secret" value={form.data_source_secret_key ? maskValue(form.data_source_secret_key) : 'not saved'} />
           <Info label="Callback" value={`${API}/api/callback/fyers?admin=1`} />
           <Info label="Access Token" value={form.data_source_access_token ? 'saved' : 'not connected'} />
           <Info label="Refresh Token" value={form.data_source_refresh_token ? 'saved' : 'not available'} />
@@ -989,10 +1024,16 @@ function Logs({ logs }) {
 
 function SystemSettings({ settings, setNotice, refresh }) {
   const [form, setForm] = useState(settings);
+  useEffect(() => setForm(settings), [settings]);
   const save = async () => {
     await api('/api/admin/settings', { method: 'POST', body: form });
     setNotice('System settings saved.');
     refresh();
+  };
+  const testTelegram = async () => {
+    await save();
+    const res = await api('/api/admin/telegram/test', { method: 'POST' });
+    setNotice(res.data?.status === 'connected' ? 'Telegram test message sent.' : 'Telegram test completed.');
   };
   return (
     <section className="grid two">
@@ -1008,7 +1049,7 @@ function SystemSettings({ settings, setNotice, refresh }) {
         </div>
       </div>
       <div className="panel">
-        <div className="panelHeader"><h2>Telegram</h2></div>
+        <div className="panelHeader"><h2>Telegram</h2><button onClick={testTelegram}><Wifi size={16} />Test</button></div>
         <div className="formStack">
           <Toggle label="Telegram Alerts" value={form.telegram_enabled} onChange={(v) => setForm({ ...form, telegram_enabled: v })} />
           <input placeholder="Bot token" value={form.telegram_bot_token || ''} onChange={(e) => setForm({ ...form, telegram_bot_token: e.target.value })} />
@@ -1190,6 +1231,11 @@ function Shell({ title, subtitle, nav, active, setActive, children, refresh, bus
         <header className="topbar">
           <div><h1>{title}</h1><p>{subtitle}</p></div>
           <div className="buttonCluster">
+            {mode === 'adminMode' && (
+              <select className="navSelect" value={active} onChange={(event) => setActive(event.target.value)}>
+                {nav.map(([id, , label]) => <option key={id} value={id}>{label}</option>)}
+              </select>
+            )}
             <button className="iconButton" onClick={refresh} disabled={busy}><RefreshCw size={18} className={busy ? 'spin' : ''} /></button>
             <button className="iconButton" onClick={logout}><LogOut size={18} /></button>
           </div>
@@ -1294,8 +1340,23 @@ function marketOpen() {
 function formatCell(value) {
   if (value === null || value === undefined || value === '') return '-';
   if (typeof value === 'number') return Number.isInteger(value) ? value : value.toFixed(2);
-  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(value)) return value.slice(0, 10);
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}/.test(value)) return formatIstDateTime(value);
   return String(value);
+}
+
+function formatIstDateTime(value) {
+  const normalized = String(value).includes('T') ? value : String(value).replace(' ', 'T');
+  const date = new Date(normalized.endsWith('Z') ? normalized : `${normalized}+05:30`);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString('en-IN', {
+    timeZone: 'Asia/Kolkata',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
 }
 
 function summarizeBestBacktests(backtests = []) {
