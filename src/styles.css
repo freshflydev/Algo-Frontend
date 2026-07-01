@@ -4,55 +4,64 @@
 
 @layer base {
   * { box-sizing: border-box; }
-  html { @apply bg-slate-100 text-ink; }
-  body { @apply m-0 min-h-screen bg-slate-100 font-sans antialiased; }
-  button, input, select { font: inherit; }
-  button { @apply inline-flex min-h-9 items-center justify-center gap-2 rounded-md border border-line bg-white px-3 py-2 text-sm font-semibold text-slate-800 shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50; }
+  html { @apply bg-[#eef3f8] text-ink; }
+  body { @apply m-0 min-h-screen bg-[#eef3f8] font-sans antialiased; }
+  button, input, select, textarea { font: inherit; }
+  button { @apply inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-line bg-white px-3 py-2 text-sm font-bold text-slate-800 shadow-sm transition disabled:cursor-not-allowed disabled:opacity-45; }
   button:hover:not(:disabled) { @apply border-slate-400 bg-slate-50; }
-  input, select { @apply min-h-10 w-full rounded-md border border-line bg-white px-3 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-app-blue focus:ring-2 focus:ring-blue-100; }
+  input:not([type="checkbox"]), select, textarea { @apply min-h-10 w-full rounded-lg border border-line bg-white px-3 text-sm font-semibold text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-app-blue focus:ring-2 focus:ring-blue-100; }
+  input[type="checkbox"] { @apply h-5 w-5 shrink-0 accent-app-blue; }
   table { @apply w-full border-collapse text-left text-sm; }
-  th { @apply whitespace-nowrap border-b border-line bg-slate-50 px-3 py-2 text-[11px] font-bold uppercase tracking-wide text-slate-500; }
+  th { @apply whitespace-nowrap border-b border-line bg-slate-50 px-3 py-2 text-[11px] font-extrabold uppercase tracking-wide text-slate-500; }
   td { @apply border-b border-slate-100 px-3 py-2 align-middle text-slate-800; }
 }
 
 @layer components {
-  .loginShell { @apply grid min-h-screen place-items-center bg-slate-100 p-4; }
-  .loginPanel { @apply grid w-full max-w-sm gap-3 rounded-xl border border-line bg-white p-5 shadow-soft; }
-  .loginPanel h1 { @apply m-0 text-2xl font-bold tracking-normal text-slate-950; }
+  .loginShell { @apply grid min-h-screen place-items-center bg-[radial-gradient(circle_at_top_left,#dff6f1,transparent_34%),linear-gradient(135deg,#f8fbff,#e9eff7)] p-4; }
+  .loginPanel { @apply grid w-full max-w-sm gap-3 rounded-2xl border border-white/70 bg-white/90 p-5 shadow-soft backdrop-blur; }
+  .loginPanel h1 { @apply m-0 text-2xl font-extrabold text-slate-950; }
   .brandMark { @apply flex items-center justify-between gap-3 text-app-blue; }
-  .brandMark strong { @apply mr-auto text-lg tracking-normal text-slate-950; }
-  .notice { @apply rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-700; }
+  .brandMark strong { @apply mr-auto text-lg font-extrabold text-slate-950; }
+  .notice { @apply rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700; }
 
-  .app { @apply min-h-screen bg-slate-100 text-slate-900 md:grid md:grid-cols-[236px_minmax(0,1fr)]; }
-  .sidebar { @apply fixed inset-y-0 left-0 z-30 hidden w-[236px] border-r border-line bg-white p-4 md:block; }
+  .app { @apply min-h-screen bg-[#eef3f8] text-slate-900 md:grid md:grid-cols-[248px_minmax(0,1fr)]; }
+  .adminMode.app { @apply bg-[#edf2f7] md:bg-[#111827]; }
+  .sidebar { @apply fixed inset-y-0 left-0 z-30 hidden w-[248px] border-r border-line bg-white p-4 md:block; }
+  .adminMode .sidebar { @apply border-white/10 bg-[#080f1f] text-white; }
   .brand { @apply flex items-center gap-3 text-app-blue; }
-  .brand strong { @apply block text-base font-extrabold tracking-normal text-slate-950; }
-  .brand span { @apply block text-xs font-semibold text-slate-500; }
+  .adminMode .brand { @apply text-[#a7f36b]; }
+  .brand strong { @apply block text-base font-extrabold text-slate-950; }
+  .adminMode .brand strong { @apply text-white; }
+  .brand span { @apply block text-xs font-bold text-slate-500; }
+  .adminMode .brand span { @apply text-slate-400; }
   .navRail, .drawerNav { @apply mt-5 grid gap-1; }
-  .nav { @apply justify-start border-transparent bg-transparent px-3 text-slate-600 shadow-none; }
+  .nav { @apply w-full justify-start border-transparent bg-transparent px-3 text-slate-600 shadow-none; }
   .nav.active { @apply border-blue-100 bg-blue-50 text-app-blue; }
+  .adminMode .nav { @apply text-slate-300 hover:border-white/10 hover:bg-white/10 hover:text-white; }
+  .adminMode .nav.active { @apply border-[#a7f36b]/20 bg-[#a7f36b]/15 text-[#c6ff80]; }
   .nav span { @apply truncate; }
 
-  .navDrawer { @apply fixed inset-y-0 left-0 z-50 w-[86vw] max-w-xs -translate-x-full border-r border-line bg-white p-4 shadow-2xl transition-transform md:hidden; }
+  .navDrawer { @apply fixed inset-y-0 left-0 z-50 w-[86vw] max-w-xs -translate-x-full border-r border-white/10 bg-[#080f1f] p-4 text-white shadow-2xl transition-transform md:hidden; }
   .navDrawer.open { @apply translate-x-0; }
-  .drawerBackdrop { @apply fixed inset-0 z-40 min-h-0 rounded-none border-0 bg-slate-950/40 p-0 shadow-none md:hidden; }
+  .drawerBackdrop { @apply fixed inset-0 z-40 min-h-0 rounded-none border-0 bg-slate-950/50 p-0 shadow-none md:hidden; }
   .drawerHeader { @apply flex items-center justify-between gap-3; }
 
   .main { @apply min-w-0 p-3 pb-24 md:col-start-2 md:p-5; }
-  .topbar { @apply sticky top-0 z-20 -mx-3 -mt-3 mb-3 flex items-center justify-between gap-3 border-b border-line bg-slate-100/95 px-3 py-3 backdrop-blur md:-mx-5 md:-mt-5 md:px-5; }
-  .topbar h1 { @apply m-0 text-xl font-extrabold tracking-normal text-slate-950; }
-  .topbar p { @apply m-0 max-w-[55vw] truncate text-xs font-medium text-slate-500; }
+  .adminMode .main { @apply bg-[#eef3f8] md:rounded-l-[28px]; }
+  .topbar { @apply sticky top-0 z-20 -mx-3 -mt-3 mb-3 flex items-center justify-between gap-3 border-b border-line bg-[#eef3f8]/95 px-3 py-3 backdrop-blur md:-mx-5 md:-mt-5 md:px-5; }
+  .topbar h1 { @apply m-0 text-xl font-extrabold text-slate-950; }
+  .topbar p { @apply m-0 max-w-[52vw] truncate text-xs font-bold text-slate-500; }
   .buttonCluster { @apply flex flex-wrap items-center justify-end gap-2; }
   .menuButton { @apply md:hidden; }
-  .iconButton { @apply h-9 w-9 rounded-md p-0; }
+  .iconButton { @apply h-9 w-9 rounded-lg p-0; }
   .primary { @apply border-app-blue bg-app-blue text-white hover:bg-blue-800 hover:text-white; }
   .success { @apply border-emerald-200 bg-emerald-50 text-emerald-700; }
   .danger { @apply border-red-200 bg-red-50 text-red-700; }
   .ghost { @apply bg-transparent shadow-none; }
 
-  .statusStrip { @apply mb-3 flex items-center gap-2 overflow-x-auto rounded-lg border border-line bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm; }
-  .statusStrip > span:last-child { @apply min-w-fit text-slate-500; }
-  .signalPill { @apply inline-flex min-h-7 items-center gap-1 rounded-full border border-slate-200 bg-white px-2 text-xs font-bold text-slate-600; }
+  .statusStrip { @apply mb-3 grid grid-cols-2 gap-2 rounded-xl border border-line bg-white/90 p-2 text-xs font-bold text-slate-600 shadow-sm md:flex md:flex-wrap md:items-center; }
+  .statusStrip > span:last-child { @apply col-span-2 min-w-0 truncate rounded-lg bg-slate-50 px-2 py-2 text-slate-500 md:flex-1; }
+  .signalPill { @apply inline-flex min-h-8 min-w-0 items-center justify-center gap-1 rounded-full border border-slate-200 bg-white px-2 text-xs font-extrabold text-slate-600; }
   .signalPill.good { @apply border-emerald-200 bg-emerald-50 text-emerald-700; }
   .signalPill.warn { @apply border-amber-200 bg-amber-50 text-amber-700; }
   .signalPill.bullish { @apply border-emerald-200 bg-emerald-50 text-emerald-700; }
@@ -60,31 +69,46 @@
   .signalPill.neutral { @apply border-slate-200 bg-slate-50 text-slate-600; }
 
   .grid { display: grid; @apply gap-3 sm:grid-cols-2 xl:grid-cols-4; }
-  .grid.two { @apply sm:grid-cols-2 xl:grid-cols-2; }
-  .panel { @apply rounded-lg border border-line bg-white p-3 shadow-card; }
+  .grid.two { @apply xl:grid-cols-2; }
+  .panel { @apply rounded-xl border border-line bg-white p-3 shadow-card; }
   .panel.wide, .wide { @apply sm:col-span-2 xl:col-span-full; }
   .panelHeader { @apply mb-3 flex items-center justify-between gap-3; }
-  .panelHeader h2 { @apply m-0 text-base font-extrabold tracking-normal text-slate-950; }
-  .inlineHeader { @apply mb-2; }
-  .pill { @apply inline-flex min-h-7 items-center rounded-full bg-slate-100 px-2 text-xs font-bold text-slate-600; }
+  .panelHeader h2 { @apply m-0 text-base font-extrabold text-slate-950; }
+  .inlineHeader { @apply mb-1 px-1; }
+  .pill { @apply inline-flex min-h-7 max-w-full items-center truncate rounded-full bg-slate-100 px-2 text-xs font-extrabold text-slate-600; }
   .pill.good { @apply bg-emerald-50 text-emerald-700; }
   .pill.warn { @apply bg-amber-50 text-amber-700; }
 
-  .metric { @apply grid min-h-[84px] gap-1 rounded-lg border border-line bg-white p-3 shadow-card; }
+  .runtimeGrid { @apply grid gap-3 sm:grid-cols-3; }
+  .runtimeCard { @apply rounded-2xl border border-line bg-white p-3 shadow-card; }
+  .runtimeCard.good { @apply border-emerald-200 bg-emerald-50/70; }
+  .runtimeCard.warn { @apply border-amber-200 bg-amber-50/70; }
+  .runtimeHead { @apply flex items-center gap-3; }
+  .runtimeHead > span { @apply grid h-10 w-10 place-items-center rounded-xl bg-slate-900 text-white; }
+  .runtimeCard.good .runtimeHead > span { @apply bg-emerald-600; }
+  .runtimeCard.warn .runtimeHead > span { @apply bg-amber-500; }
+  .runtimeHead strong { @apply block text-sm font-extrabold text-slate-950; }
+  .runtimeHead em { @apply block text-xs font-extrabold uppercase not-italic text-slate-500; }
+  .runtimeRows { @apply mt-3 grid gap-2; }
+  .runtimeRows div { @apply rounded-lg bg-white/80 p-2; }
+  .runtimeRows small { @apply block text-[10px] font-extrabold uppercase tracking-wide text-slate-500; }
+  .runtimeRows b { @apply mt-1 block truncate text-xs font-extrabold text-slate-900; }
+
+  .metric { @apply grid min-h-[82px] gap-1 rounded-2xl border border-line bg-white p-3 shadow-card; }
   .metric svg { @apply text-app-blue; }
-  .metric span { @apply text-xs font-bold uppercase tracking-wide text-slate-500; }
-  .metric strong { @apply text-xl font-extrabold tracking-normal text-slate-950; }
+  .metric span { @apply text-[11px] font-extrabold uppercase tracking-wide text-slate-500; }
+  .metric strong { @apply text-xl font-extrabold text-slate-950; }
   .metric.good strong { @apply text-emerald-700; }
   .metric.warn strong { @apply text-amber-700; }
   .metric.muted strong { @apply text-slate-500; }
 
   .userHome, .mobileFlow, .tradeSection, .backtestLayout, .instrumentLayout { @apply grid gap-3; }
   .statusStack { @apply grid gap-2; }
-  .statusRow { @apply grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border border-line bg-white p-3 shadow-card; }
-  .statusRow small { @apply block text-xs font-bold uppercase tracking-wide text-slate-500; }
+  .statusRow { @apply grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 rounded-2xl border border-line bg-white p-3 shadow-card; }
+  .statusRow small { @apply block text-[11px] font-extrabold uppercase tracking-wide text-slate-500; }
   .statusRow strong { @apply block truncate text-base font-extrabold; }
-  .statusTime { @apply max-w-[9rem] truncate text-right text-xs font-bold text-slate-500; }
-  .roundIcon, .tileIcon { @apply grid h-10 w-10 place-items-center rounded-full bg-blue-50 text-app-blue; }
+  .statusTime { @apply max-w-[8.5rem] truncate text-right text-xs font-bold text-slate-500; }
+  .roundIcon, .tileIcon { @apply grid h-10 w-10 place-items-center rounded-xl bg-blue-50 text-app-blue; }
   .roundIcon.good, .tileIcon.good { @apply bg-emerald-50 text-emerald-700; }
   .roundIcon.danger { @apply bg-red-50 text-red-700; }
   .tileIcon.warn { @apply bg-amber-50 text-amber-700; }
@@ -92,61 +116,78 @@
   .summaryGrid, .userTileGrid, .miniGrid, .workflowSteps, .formGrid { @apply grid gap-2; }
   .summaryGrid { @apply grid-cols-2 xl:grid-cols-4; }
   .userTileGrid { @apply grid-cols-3; }
-  .userTile { @apply grid min-h-[92px] place-items-center gap-2 rounded-lg border border-line bg-white p-3 text-center shadow-card; }
+  .userTile { @apply grid min-h-[84px] place-items-center gap-2 rounded-2xl border border-line bg-white p-3 text-center shadow-card; }
   .userTile strong { @apply text-xs font-extrabold text-slate-900; }
   .miniGrid { @apply sm:grid-cols-2; }
   .miniGrid.twoCols { @apply grid-cols-2; }
-  .info { @apply min-w-0 rounded-md bg-slate-50 p-2; }
-  .info span { @apply block text-[11px] font-bold uppercase tracking-wide text-slate-500; }
+  .info { @apply min-w-0 rounded-xl bg-slate-50 p-2; }
+  .info span { @apply block text-[10px] font-extrabold uppercase tracking-wide text-slate-500; }
   .info strong { @apply mt-1 block truncate text-sm font-extrabold text-slate-900; }
 
   .brokerCards, .instrumentCards, .tradeGrid, .positionStrip, .strategyList, .backtestInstruments { @apply grid gap-3; }
-  .brokerCards, .instrumentCards, .tradeGrid { @apply sm:grid-cols-2 xl:grid-cols-3; }
-  .brokerCard, .subscriptionCard, .tradeCard, .orderMiniCard, .instrumentCard, .backtestInstrument, .strategyEdit { @apply relative rounded-lg border border-line bg-white p-3 text-left shadow-card; }
+  .brokerCards, .tradeGrid { @apply sm:grid-cols-2 xl:grid-cols-3; }
+  .instrumentCards { @apply grid-cols-2 sm:grid-cols-3 xl:grid-cols-4; }
+  .brokerCard, .subscriptionCard, .tradeCard, .orderMiniCard, .instrumentCard, .backtestInstrument, .strategyEdit { @apply relative rounded-2xl border border-line bg-white p-3 text-left shadow-card; }
   .brokerMain { @apply grid gap-1 pr-9; }
   .brokerMain strong, .subscriptionTop strong, .tradeTop strong { @apply truncate text-base font-extrabold text-slate-950; }
-  .brokerMain span, .brokerMain small, .subscriptionTop span { @apply truncate text-xs font-semibold text-slate-500; }
-  .cardEdit { @apply absolute right-3 top-3 h-8 w-8 p-0; }
-  .brokerFormCard, .controlPanel { @apply border-blue-100 bg-blue-50/40; }
+  .brokerMain span, .brokerMain small, .subscriptionTop span { @apply truncate text-xs font-bold text-slate-500; }
+  .cardEdit { @apply absolute right-3 top-3 h-9 w-9 p-0; }
+  .brokerCard .buttonCluster { @apply mt-3 justify-end; }
+  .brokerFormCard, .controlPanel { @apply border-blue-100 bg-blue-50/50; }
   .formStack, .targetPicker { @apply grid gap-2; }
-  .hint { @apply mt-2 rounded-md bg-slate-50 p-2 text-xs font-semibold leading-5 text-slate-500; }
+  .hint { @apply mt-2 rounded-xl bg-slate-50 p-2 text-xs font-bold leading-5 text-slate-500; }
 
-  .subscriptionTop, .tradeTop, .instrumentCardTop, .strategyFooter, .strategyFooter, .workflowStep { @apply flex items-center justify-between gap-3; }
+  .subscriptionTop, .tradeTop, .instrumentCardTop, .strategyFooter, .workflowStep { @apply flex items-center justify-between gap-3; }
   .badge { @apply rounded-full px-2 py-1 text-xs font-extrabold; }
   .badge.active { @apply bg-emerald-50 text-emerald-700; }
   .badge.inactive { @apply bg-slate-100 text-slate-500; }
-  .subscriptionFacts, .strategyChips { @apply mt-2 flex flex-wrap gap-2 text-xs font-bold text-slate-600; }
+  .subscriptionFacts, .strategyChips { @apply mt-2 flex flex-wrap gap-2 text-xs font-extrabold text-slate-600; }
   .subscriptionFacts span, .strategyChips span { @apply rounded-full bg-slate-100 px-2 py-1; }
-  .targetPicker > span, .field span { @apply text-xs font-bold uppercase tracking-wide text-slate-500; }
+  .targetPicker > span, .field span { @apply text-[11px] font-extrabold uppercase tracking-wide text-slate-500; }
   .targetPicker > div { @apply grid grid-cols-5 gap-1; }
   .targetPicker button { @apply grid min-h-12 gap-0 p-1 text-center; }
-  .targetPicker button.active { @apply border-app-blue bg-blue-50 text-app-blue; }
-  .targetPicker small { @apply text-[10px] font-semibold text-slate-500; }
+  .targetPicker button.active { @apply border-app-blue bg-blue-50 text-app-blue ring-1 ring-app-blue; }
+  .targetPicker small { @apply text-[10px] font-bold text-slate-500; }
+  .strategyFooter { @apply mt-3; }
+
+  .field { @apply grid gap-1; }
+  .field.inline { @apply grid grid-cols-[minmax(0,1fr)_auto] items-center rounded-xl bg-slate-50 p-2; }
+  .formGrid { @apply sm:grid-cols-2; }
+  .watchGrid { @apply grid gap-2; }
+  .watchGrid details { @apply rounded-xl border border-line bg-white p-3; }
+  .watchGrid summary { @apply cursor-pointer text-sm font-extrabold; }
+  .checkGrid { @apply mt-3 grid max-h-80 gap-2 overflow-auto sm:grid-cols-2; }
+  .checkGrid label { @apply flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-2 py-2 text-xs font-bold; }
+  .checkGrid label input { @apply mr-1; }
+  .checkGrid span { @apply text-slate-500; }
 
   .instrumentToolbar, .toolbar, .backtestToolbar { @apply grid gap-2 md:grid-cols-[minmax(180px,1fr)_auto_auto]; }
   .searchField { @apply relative block; }
   .searchField svg { @apply pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400; }
   .searchField input { @apply pl-9; }
-  .segmented { @apply flex overflow-x-auto rounded-md border border-line bg-white p-1; }
-  .segmented button { @apply min-h-8 min-w-fit border-0 bg-transparent px-3 shadow-none; }
+  .segmented { @apply flex overflow-x-auto rounded-xl border border-line bg-white p-1; }
+  .segmented button { @apply min-h-9 min-w-fit border-0 bg-transparent px-3 shadow-none; }
   .segmented button.active { @apply bg-app-blue text-white; }
   .symbolInput { @apply md:max-w-48; }
-  .instrumentCard { @apply grid gap-2; }
-  .instrumentCard.bullish { @apply border-emerald-200 bg-emerald-50/70; }
-  .instrumentCard.bearish { @apply border-red-200 bg-red-50/70; }
+  .instrumentCard { @apply grid min-h-[134px] gap-2 overflow-hidden; }
+  .instrumentCard.bullish { @apply border-emerald-200 bg-emerald-50/80; }
+  .instrumentCard.bearish { @apply border-red-200 bg-red-50/80; }
   .instrumentCard.active { @apply ring-2 ring-app-blue; }
-  .candleDot { @apply justify-start; }
-  .syncLine { @apply h-1 overflow-hidden rounded-full bg-slate-200; }
+  .instrumentCardTop strong { @apply block truncate text-base font-extrabold; }
+  .instrumentCardTop span { @apply block text-xs font-bold text-slate-500; }
+  .signalRow { @apply flex min-w-0 flex-wrap gap-1; }
+  .candleDot { @apply justify-start text-left; }
+  .syncLine { @apply h-1.5 overflow-hidden rounded-full bg-slate-200; }
   .syncLine span { @apply block h-full rounded-full bg-app-blue; }
 
-  .tableWrap { @apply w-full overflow-x-auto rounded-md border border-line bg-white; }
+  .tableWrap { @apply w-full overflow-x-auto rounded-xl border border-line bg-white; }
   .sync { @apply min-w-24 overflow-hidden rounded-full bg-slate-100 text-[10px] font-bold text-slate-500; }
   .sync span { @apply block h-1 bg-app-green; }
   .sync em { @apply block px-2 py-1 not-italic; }
 
-  .tradeSummaryHero { @apply grid grid-cols-2 gap-2 rounded-lg border border-line bg-white p-3 shadow-card; }
+  .tradeSummaryHero { @apply grid grid-cols-2 gap-2 rounded-2xl border border-line bg-white p-3 shadow-card; }
   .targetBoxes { @apply mt-2 grid grid-cols-6 gap-1; }
-  .targetBoxes span { @apply rounded-md bg-slate-100 px-2 py-1 text-center text-xs font-extrabold text-slate-500; }
+  .targetBoxes span { @apply rounded-lg bg-slate-100 px-2 py-1 text-center text-xs font-extrabold text-slate-500; }
   .targetBoxes .hit { @apply bg-emerald-500 text-white; }
   .targetBoxes .slHit { @apply bg-red-500 text-white; }
   .pnl.good, .goodText { @apply text-emerald-700; }
@@ -154,29 +195,44 @@
 
   .workflowPanel { @apply bg-white; }
   .workflowSteps { @apply grid-cols-2 xl:grid-cols-4; }
-  .stepCard { @apply rounded-lg border border-line bg-white p-3 shadow-card; }
-  .emptyState { @apply rounded-lg border border-dashed border-line bg-slate-50 p-4 text-center text-sm font-semibold text-slate-500; }
+  .stepCard { @apply rounded-xl border border-line bg-white p-3 shadow-card; }
+  .emptyState { @apply rounded-2xl border border-dashed border-line bg-white/70 p-4 text-center text-sm font-bold text-slate-500; }
 
   .modalBackdrop { @apply fixed inset-0 z-50 grid place-items-center bg-slate-950/50 p-3; }
-  .modal { @apply max-h-[90vh] w-full max-w-4xl overflow-auto rounded-xl border border-line bg-white p-4 shadow-2xl; }
+  .modal { @apply max-h-[90vh] w-full max-w-4xl overflow-auto rounded-2xl border border-line bg-white p-4 shadow-2xl; }
   .sectionTitle { @apply mb-2 mt-3 text-sm font-extrabold text-slate-900; }
   .historyStack { @apply grid gap-3; }
 
   .backtestToolbar { @apply md:grid-cols-6; }
   .backtestInstrument { @apply p-0; }
-  .backtestInstrument > button { @apply w-full justify-between rounded-lg border-0 bg-transparent p-3 shadow-none; }
-  .strategyGroup, .variantRow, .targetStat { @apply rounded-md border border-line bg-slate-50 p-2; }
+  .backtestInstrument > button, .instrumentHeader { @apply w-full justify-between rounded-2xl border-0 bg-transparent p-3 shadow-none; }
+  .instrumentHeader strong { @apply block text-base font-extrabold; }
+  .instrumentHeader span { @apply block text-xs font-bold text-slate-500; }
+  .instrumentScore { @apply text-right; }
+  .instrumentScore b, .instrumentScore span { @apply block; }
+  .strategyResultStack { @apply grid gap-3 border-t border-line p-3; }
+  .strategyResult, .strategyGroup, .variantRow, .targetStat { @apply rounded-xl border border-line bg-slate-50 p-3; }
+  .targetStatGrid { @apply grid grid-cols-2 gap-2 sm:grid-cols-5; }
+  .targetStat strong, .targetStat span, .targetStat em { @apply block truncate; }
+  .targetStat strong { @apply text-sm font-extrabold; }
+  .targetStat span { @apply text-xs font-bold text-slate-500; }
+  .targetStat em { @apply mt-1 text-xs font-extrabold not-italic; }
+  .variantRail { @apply mt-3 grid gap-2; }
+  .variantLane { @apply rounded-xl bg-white p-2; }
+  .variantLabel { @apply mb-2 flex items-center justify-between gap-3 text-xs font-bold text-slate-500; }
+  .variantLabel strong { @apply text-sm text-slate-900; }
   .dayBlocks, .targetStats { @apply mt-2 flex gap-1 overflow-x-auto; }
-  .dayBlock { @apply min-w-16 rounded-md border border-line bg-white p-2 text-xs; }
+  .dayBlock { @apply min-w-16 rounded-lg border border-line bg-white p-2 text-xs; }
   .dayBlock.win { @apply border-emerald-200 bg-emerald-50; }
   .dayBlock.loss { @apply border-red-200 bg-red-50; }
+  .dayBlocks.empty span { @apply rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-500; }
 
   .trendPanel { @apply mt-3 border-t border-line pt-3; }
   .trendTrack { @apply mt-3 grid gap-2; }
   .trackTitle { @apply flex items-center justify-between text-xs font-bold text-slate-500; }
   .trackTitle strong { @apply text-sm text-slate-900; }
   .trendBlocks { @apply grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6; }
-  .trendBlock { @apply min-h-[76px] rounded-md border border-line bg-slate-50 p-2; }
+  .trendBlock { @apply min-h-[76px] rounded-xl border border-line bg-slate-50 p-2; }
   .trendBlock strong, .trendBlock span, .trendBlock em, .trendBlock small { @apply block truncate; }
   .trendBlock strong { @apply text-xs text-slate-500; }
   .trendBlock span { @apply text-sm font-extrabold text-slate-900; }
@@ -184,8 +240,14 @@
   .trendBlock.bullish { @apply border-emerald-200 bg-emerald-50; }
   .trendBlock.bearish { @apply border-red-200 bg-red-50; }
 
-  .statusDot { @apply inline-flex items-center gap-1 text-xs font-bold text-slate-500; }
-  .statusDot::before { content: ""; @apply h-2 w-2 rounded-full bg-slate-400; }
+  .strategyList { @apply grid gap-3; }
+  .strategyEdit { @apply grid gap-3; }
+  .strategyEdit > div:first-child strong { @apply block text-base font-extrabold; }
+  .strategyEdit > div:first-child span { @apply block text-xs font-bold text-slate-500; }
+  .strategyEdit > button { @apply justify-self-start; }
+
+  .statusDot { @apply inline-flex items-center gap-1 text-xs font-extrabold text-slate-500; }
+  .statusDot::before { content: ""; @apply h-2 w-2 shrink-0 rounded-full bg-slate-400; }
   .statusDot.active::before { @apply bg-emerald-500; }
   .spin { @apply animate-spin; }
 }
@@ -193,18 +255,19 @@
 @layer utilities {
   @media (max-width: 767px) {
     .adminMode .sidebar { @apply hidden; }
-    .adminMode .main { @apply p-3 pb-6; }
+    .adminMode .main { @apply rounded-none p-3 pb-6; }
     .userMode .sidebar { @apply fixed inset-auto bottom-0 left-0 right-0 z-30 block w-auto border-0 bg-transparent p-0; }
     .userMode .sidebar .brand { @apply hidden; }
     .userMode .main { @apply p-3 pb-24; }
     .userMode .navRail {
-      @apply fixed inset-x-3 bottom-3 z-30 mt-0 grid grid-cols-4 gap-1 rounded-xl border border-line bg-white p-1 shadow-soft;
+      @apply fixed inset-x-3 bottom-3 z-30 mt-0 grid grid-cols-4 gap-1 rounded-2xl border border-line bg-white/95 p-1 shadow-soft backdrop-blur;
     }
-    .userMode .nav { @apply grid min-h-14 justify-items-center gap-1 px-1 py-2 text-[11px]; }
+    .userMode .nav { @apply grid min-h-14 justify-items-center gap-1 rounded-xl px-1 py-2 text-[11px]; }
     .userMode .nav svg { @apply h-4 w-4; }
     .topbar p { @apply hidden; }
     .panel { @apply p-3; }
     .summaryGrid { @apply grid-cols-2; }
+    .runtimeGrid { @apply grid-cols-1; }
     .workflowSteps { @apply grid-cols-1; }
     .instrumentToolbar, .toolbar, .backtestToolbar { @apply grid-cols-1; }
     .buttonCluster { @apply flex-nowrap; }

@@ -456,6 +456,7 @@ function AdminApp({ session, logout, notice, setNotice }) {
   const [tab, setTab] = useState('overview');
   const [state, setState] = useState({});
   const [busy, setBusy] = useState(false);
+  const runtime = useMemo(() => buildRuntimeState(state), [state]);
 
   const refresh = async () => {
     setBusy(true);
@@ -519,8 +520,9 @@ function AdminApp({ session, logout, notice, setNotice }) {
       refresh={refresh}
       busy={busy}
       logout={logout}
+      runtime={runtime}
     >
-      {tab === 'overview' && <AdminOverview state={state} />}
+      {tab === 'overview' && <AdminOverview state={state} runtime={runtime} />}
       {tab === 'instruments' && <AdminInstruments instruments={state.instruments || []} refresh={refresh} setNotice={setNotice} />}
       {tab === 'users' && <AdminUsers users={state.users || []} refresh={refresh} setNotice={setNotice} />}
       {tab === 'brokers' && <AdminBrokerPanel settings={state.settings || {}} setNotice={setNotice} refresh={refresh} />}
@@ -528,18 +530,19 @@ function AdminApp({ session, logout, notice, setNotice }) {
       {tab === 'backtest' && <Backtests instruments={state.instruments || []} setNotice={setNotice} />}
       {tab === 'performance' && <Performance performance={state.performance || []} backtests={state.backtests || []} />}
       {tab === 'trades' && <TradeCards trades={state.trades || []} setNotice={setNotice} />}
-      {tab === 'monitor' && <Monitor openOrders={state.openOrders || []} brokers={state.brokers || []} instances={state.instances || []} />}
+      {tab === 'monitor' && <Monitor openOrders={state.openOrders || []} brokers={state.brokers || []} instances={state.instances || []} runtime={runtime} />}
       {tab === 'logs' && <Logs logs={state.logs || []} />}
-      {tab === 'system' && <SystemSettings settings={state.settings || {}} setNotice={setNotice} refresh={refresh} />}
+      {tab === 'system' && <SystemSettings settings={state.settings || {}} runtime={runtime} setNotice={setNotice} refresh={refresh} />}
     </Shell>
   );
 }
 
-function AdminOverview({ state }) {
+function AdminOverview({ state, runtime }) {
   const connected = state.brokers?.filter((item) => item.is_connected).length || 0;
   const running = state.instances?.filter((item) => item.status === 'running').length || 0;
   return (
     <section className="grid">
+      <RuntimeHealth runtime={runtime} />
       <Metric icon={LineChart} label="Tracked Instruments" value={state.instruments?.length || 0} />
       <Metric icon={Users} label="Users" value={state.users?.length || 0} />
       <Metric icon={Activity} label="Open Orders" value={state.openOrders?.length || 0} />
@@ -1010,9 +1013,10 @@ function trendLabel(trend = '') {
   return 'Neutral';
 }
 
-function Monitor({ openOrders, brokers, instances }) {
+function Monitor({ openOrders, brokers, instances, runtime }) {
   return (
     <section className="grid two">
+      <RuntimeHealth runtime={runtime} />
       <div className="panel"><div className="panelHeader"><h2>Open Orders</h2></div><DataTable rows={openOrders} columns={['mobile', 'strategy', 'symbol', 'side', 'status', 'entry_price', 'target_price', 'stop_loss', 'order_tag']} /></div>
       <div className="panel"><div className="panelHeader"><h2>Broker Connections</h2></div><DataTable rows={brokers} columns={['mobile', 'broker', 'is_connected', 'connected_at', 'updated_at']} /></div>
       <div className="panel wide"><div className="panelHeader"><h2>Running Instances</h2></div><DataTable rows={instances} columns={['mobile', 'status', 'started_at', 'stopped_at', 'updated_at']} /></div>
@@ -1024,7 +1028,7 @@ function Logs({ logs }) {
   return <section className="panel"><div className="panelHeader"><h2>Audit Logs</h2></div><DataTable rows={logs} columns={['created_at', 'level', 'scope', 'message']} /></section>;
 }
 
-function SystemSettings({ settings, setNotice, refresh }) {
+function SystemSettings({ settings, runtime, setNotice, refresh }) {
   const [form, setForm] = useState(settings);
   useEffect(() => setForm(settings), [settings]);
   const save = async () => {
@@ -1039,6 +1043,7 @@ function SystemSettings({ settings, setNotice, refresh }) {
   };
   return (
     <section className="grid two">
+      <RuntimeHealth runtime={runtime} />
       <div className="panel">
         <div className="panelHeader"><h2>Websocket & Scheduler</h2><button className="primary" onClick={save}><Save size={16} />Save</button></div>
         <div className="formGrid">
@@ -1178,6 +1183,67 @@ function SignalPill({ icon: Icon, label, tone = 'neutral' }) {
   return <span className={`signalPill ${tone}`}><Icon size={12} />{label}</span>;
 }
 
+function RuntimeHealth({ runtime }) {
+  if (!runtime) return null;
+  const openSymbols = runtime.openOrderSymbols?.length ? runtime.openOrderSymbols.join(', ') : 'No active symbols';
+  return (
+    <div className="runtimeGrid wide">
+      <RuntimeCard
+        icon={Clock}
+        title="Scheduler"
+        status={runtime.scheduler.enabled ? 'Enabled' : 'Stopped'}
+        tone={runtime.scheduler.enabled ? 'good' : 'warn'}
+        rows={[
+          ['Last run', runtime.scheduler.lastRun || 'No run recorded'],
+          ['Next jobs', '09:14 GANN · 15m scan · 15:15 close'],
+        ]}
+      />
+      <RuntimeCard
+        icon={Wifi}
+        title="Fyers Data Feed"
+        status={runtime.feed.enabled ? runtime.feed.status : 'Disabled'}
+        tone={runtime.feed.connected ? 'good' : runtime.feed.enabled ? 'warn' : 'neutral'}
+        rows={[
+          ['Last event', runtime.feed.lastEvent || 'No event recorded'],
+          ['Subscribed', openSymbols],
+        ]}
+      />
+      <RuntimeCard
+        icon={MonitorDot}
+        title="Order Websocket"
+        status={runtime.orderWs.connected ? 'Connected' : runtime.orderWs.enabled ? 'Waiting' : 'Disabled'}
+        tone={runtime.orderWs.connected ? 'good' : runtime.orderWs.enabled ? 'warn' : 'neutral'}
+        rows={[
+          ['Last event', runtime.orderWs.lastEvent || 'No event recorded'],
+          ['Open orders', runtime.openOrders],
+        ]}
+      />
+    </div>
+  );
+}
+
+function RuntimeCard({ icon: Icon, title, status, tone = 'neutral', rows = [] }) {
+  return (
+    <article className={`runtimeCard ${tone}`}>
+      <div className="runtimeHead">
+        <span><Icon size={16} /></span>
+        <div>
+          <strong>{title}</strong>
+          <em>{status}</em>
+        </div>
+      </div>
+      <div className="runtimeRows">
+        {rows.map(([label, value]) => (
+          <div key={label}>
+            <small>{label}</small>
+            <b>{formatCell(value)}</b>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
 function StepCard({ icon: Icon, label, value, tone = 'neutral' }) {
   return (
     <div className={`stepCard ${tone}`}>
@@ -1206,20 +1272,22 @@ function OrderMiniCard({ order }) {
   );
 }
 
-function StatusStrip() {
+function StatusStrip({ runtime }) {
   const mins = currentIstMinutes();
   const next = mins < 8 * 60 ? 'Users can connect from 08:00' : mins < 9 * 60 + 14 ? 'Prepare data-source login and user connections' : mins < 15 * 60 ? 'Live strategy and websocket monitoring' : mins < 15 * 60 + 30 ? 'Exit checks and intraday close' : 'Market workflow complete';
+  const dryRun = runtime?.settings?.dry_run_orders !== false;
   return (
     <div className="statusStrip">
       <SignalPill icon={ShieldCheck} label={marketOpen() ? 'Market open' : 'Market closed'} tone={marketOpen() ? 'good' : 'neutral'} />
       <SignalPill icon={Clock} label={new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })} tone="neutral" />
-      <SignalPill icon={IndianRupee} label="Dry-run can be toggled in System" tone="warn" />
+      <SignalPill icon={IndianRupee} label={dryRun ? 'Dry-run on' : 'Live orders'} tone={dryRun ? 'warn' : 'good'} />
+      {runtime && <SignalPill icon={Wifi} label={`Feed ${runtime.feed.status}`} tone={runtime.feed.connected ? 'good' : 'warn'} />}
       <span>{next}</span>
     </div>
   );
 }
 
-function Shell({ title, subtitle, nav, active, setActive, children, refresh, busy, logout }) {
+function Shell({ title, subtitle, nav, active, setActive, children, refresh, busy, logout, runtime }) {
   const mode = title === 'Algo Trading' ? 'userMode' : 'adminMode';
   const isAdmin = mode === 'adminMode';
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -1261,7 +1329,7 @@ function Shell({ title, subtitle, nav, active, setActive, children, refresh, bus
             <button className="iconButton" onClick={logout}><LogOut size={18} /></button>
           </div>
         </header>
-        <StatusStrip />
+        <StatusStrip runtime={runtime} />
         {children}
       </main>
     </div>
@@ -1353,9 +1421,53 @@ function toBrokerForm(broker) {
 }
 
 function marketOpen() {
-  const now = new Date();
-  const mins = now.getHours() * 60 + now.getMinutes();
+  const mins = currentIstMinutes();
   return mins >= 9 * 60 + 15 && mins <= 15 * 60 + 30;
+}
+
+function buildRuntimeState(state = {}) {
+  const settings = state.settings || {};
+  const logs = state.logs || [];
+  const openOrders = state.openOrders || [];
+  const dataLog = latestLog(logs, ['data-ws']);
+  const orderLog = latestLog(logs, ['order-ws']);
+  const schedulerLog = latestLog(logs, ['scheduler', 'scheduler-daily-gann', 'scheduler-intraday', 'scheduler-force-close', 'scheduler-swing']);
+  const schedulerEnabled = settings.scheduler_enabled !== false;
+  const feedEnabled = settings.live_feed_enabled !== false;
+  const feedConnected = feedEnabled && !isProblemLog(dataLog) && Boolean(dataLog || settings.data_source_status === 'connected');
+  const orderWsConnected = feedEnabled && !isProblemLog(orderLog) && Boolean(orderLog);
+  return {
+    settings,
+    openOrders: openOrders.length,
+    openOrderSymbols: [...new Set(openOrders.map((order) => order.symbol).filter(Boolean))],
+    scheduler: {
+      enabled: schedulerEnabled,
+      lastRun: schedulerLog?.created_at,
+      lastMessage: schedulerLog?.message,
+    },
+    feed: {
+      enabled: feedEnabled,
+      connected: feedConnected,
+      status: feedEnabled ? (feedConnected ? 'connected' : 'waiting') : 'disabled',
+      lastEvent: dataLog?.created_at,
+      lastMessage: dataLog?.message,
+    },
+    orderWs: {
+      enabled: feedEnabled,
+      connected: orderWsConnected,
+      lastEvent: orderLog?.created_at,
+      lastMessage: orderLog?.message,
+    },
+  };
+}
+
+function latestLog(logs, scopes) {
+  const scopeSet = new Set(scopes);
+  return logs.find((log) => scopeSet.has(log.scope));
+}
+
+function isProblemLog(log) {
+  return ['warn', 'error'].includes(String(log?.level || '').toLowerCase());
 }
 
 function formatCell(value) {
