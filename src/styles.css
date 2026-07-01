@@ -18,9 +18,9 @@
 
 @layer components {
   .loginShell { @apply grid min-h-screen place-items-center bg-[radial-gradient(circle_at_top_left,#dff6f1,transparent_34%),linear-gradient(135deg,#f8fbff,#e9eff7)] p-4; }
-  .loginPanel { @apply grid w-full max-w-sm gap-3 rounded-2xl border border-white/70 bg-white/90 p-5 shadow-soft backdrop-blur; }
+  .loginPanel { @apply grid w-full max-w-md gap-4 rounded-2xl border border-white/70 bg-white/95 p-5 shadow-soft backdrop-blur sm:p-6; }
   .loginPanel h1 { @apply m-0 text-2xl font-extrabold text-slate-950; }
-  .brandMark { @apply flex items-center justify-between gap-3 text-app-blue; }
+  .brandMark { @apply flex flex-wrap items-center justify-between gap-3 text-app-blue; }
   .brandMark strong { @apply mr-auto text-lg font-extrabold text-slate-950; }
   .notice { @apply rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700; }
 
@@ -60,6 +60,7 @@
   .ghost { @apply bg-transparent shadow-none; }
 
   .statusStrip { @apply mb-3 grid grid-cols-2 gap-2 rounded-xl border border-line bg-white/90 p-2 text-xs font-bold text-slate-600 shadow-sm md:flex md:flex-wrap md:items-center; }
+  .userStatusStrip { @apply grid-cols-2 md:flex; }
   .statusStrip > span:last-child { @apply col-span-2 min-w-0 truncate rounded-lg bg-slate-50 px-2 py-2 text-slate-500 md:flex-1; }
   .signalPill { @apply inline-flex min-h-8 min-w-0 items-center justify-center gap-1 rounded-full border border-slate-200 bg-white px-2 text-xs font-extrabold text-slate-600; }
   .signalPill.good { @apply border-emerald-200 bg-emerald-50 text-emerald-700; }
@@ -125,7 +126,18 @@
   .info strong { @apply mt-1 block truncate text-sm font-extrabold text-slate-900; }
 
   .brokerCards, .instrumentCards, .tradeGrid, .positionStrip, .strategyList, .backtestInstruments { @apply grid gap-3; }
-  .brokerCards, .tradeGrid { @apply sm:grid-cols-2 xl:grid-cols-3; }
+  .brokerCards, .tradeGrid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  }
+  .userMode .mobileFlow {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+    @apply items-start;
+  }
+  .userMode .mobileFlow > .panelHeader,
+  .userMode .mobileFlow > .brokerFormCard,
+  .userMode .mobileFlow > .emptyState {
+    grid-column: 1 / -1;
+  }
   .instrumentCards {
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr));
     @apply w-full;
@@ -148,7 +160,7 @@
   .subscriptionFacts span, .strategyChips span { @apply rounded-full bg-slate-100 px-2 py-1; }
   .targetPicker > span, .field span { @apply text-[11px] font-extrabold uppercase tracking-wide text-slate-500; }
   .targetPicker > div { @apply grid grid-cols-5 gap-1; }
-  .targetPicker button { @apply grid min-h-12 gap-0 p-1 text-center; }
+  .targetPicker button { @apply grid min-h-14 min-w-0 gap-0 p-1 text-center; }
   .targetPicker button.active { @apply border-app-blue bg-blue-50 text-app-blue ring-1 ring-app-blue; }
   .targetPicker small { @apply text-[10px] font-bold text-slate-500; }
   .strategyFooter { @apply mt-3; }
@@ -164,7 +176,7 @@
   .checkGrid label input { @apply mr-1; }
   .checkGrid span { @apply text-slate-500; }
 
-  .instrumentToolbar, .toolbar, .backtestToolbar { @apply grid gap-2 md:grid-cols-[minmax(180px,1fr)_auto_auto]; }
+  .instrumentToolbar, .toolbar, .backtestToolbar { @apply grid gap-2 md:grid-cols-[minmax(220px,1fr)_auto_minmax(180px,220px)]; }
   .searchField { @apply relative block; }
   .searchField svg { @apply pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400; }
   .searchField input { @apply pl-9; }
@@ -172,7 +184,7 @@
   .segmented button { @apply min-h-9 min-w-fit border-0 bg-transparent px-3 shadow-none; }
   .segmented button.active { @apply bg-app-blue text-white; }
   .symbolInput { @apply md:max-w-48; }
-  .instrumentCard { @apply grid min-h-[142px] min-w-0 gap-2 overflow-visible; }
+  .instrumentCard { @apply grid min-h-[142px] min-w-0 gap-2 overflow-hidden text-left; }
   .instrumentCard.bullish { @apply border-emerald-200 bg-emerald-50/80; }
   .instrumentCard.bearish { @apply border-red-200 bg-red-50/80; }
   .instrumentCard.active { @apply ring-2 ring-app-blue; }
@@ -208,7 +220,7 @@
   .sectionTitle { @apply mb-2 mt-3 text-sm font-extrabold text-slate-900; }
   .historyStack { @apply grid gap-3; }
 
-  .backtestToolbar { @apply md:grid-cols-6; }
+  .backtestToolbar { @apply md:grid-cols-3 xl:grid-cols-6; }
   .backtestInstrument { @apply p-0; }
   .backtestInstrument > button, .instrumentHeader { @apply w-full justify-between rounded-2xl border-0 bg-transparent p-3 shadow-none; }
   .instrumentHeader strong { @apply block text-base font-extrabold; }
@@ -236,8 +248,9 @@
   .trendTrack { @apply mt-3 grid gap-2; }
   .trackTitle { @apply flex items-center justify-between text-xs font-bold text-slate-500; }
   .trackTitle strong { @apply text-sm text-slate-900; }
-  .trendBlocks { @apply grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6; }
+  .trendBlocks { @apply flex gap-2 overflow-x-auto pb-1; }
   .trendBlock { @apply min-h-[76px] rounded-xl border border-line bg-slate-50 p-2; }
+  .trendBlock { min-width: 96px; }
   .trendBlock strong, .trendBlock span, .trendBlock em, .trendBlock small { @apply block truncate; }
   .trendBlock strong { @apply text-xs text-slate-500; }
   .trendBlock span { @apply text-sm font-extrabold text-slate-900; }
@@ -245,8 +258,10 @@
   .trendBlock.bullish { @apply border-emerald-200 bg-emerald-50; }
   .trendBlock.bearish { @apply border-red-200 bg-red-50; }
 
+  .strategyAdminLayout { @apply grid gap-3 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]; }
   .strategyList { @apply grid gap-3; }
   .strategyEdit { @apply grid min-w-0 gap-3; }
+  .strategyEditFields { @apply grid gap-2 md:grid-cols-3; }
   .strategyEdit > div:first-child strong { @apply block text-base font-extrabold; }
   .strategyEdit > div:first-child span { @apply block text-xs font-bold text-slate-500; }
   .strategyEdit > button { @apply justify-self-start; }

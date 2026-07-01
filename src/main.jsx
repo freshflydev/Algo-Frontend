@@ -548,8 +548,8 @@ function AdminOverview({ state, runtime }) {
         <div className="workflowSteps">
           <Info label="08:00-09:10" value="Users connect broker and start instance" />
           <Info label="09:14" value="Fetch day open and calculate GANN levels" />
-          <Info label="09:15-15:00" value="15m candles, entries, websocket exits" />
-          <Info label="15:15" value="Force close intraday orders" />
+          <Info label="Market hours" value="Swing entry checks and websocket exits" />
+          <Info label="Open positions" value="Monitor target and trailing SL until exit" />
         </div>
       </div>
       <div className="panel wide">
@@ -769,7 +769,7 @@ function AdminStrategies({ strategies, instruments, setNotice, refresh }) {
     refresh();
   };
   return (
-    <section className="grid two">
+    <section className="strategyAdminLayout">
       <div className="panel">
         <div className="panelHeader"><h2>Strategy Catalog</h2></div>
         <div className="strategyList">
@@ -781,9 +781,11 @@ function AdminStrategies({ strategies, instruments, setNotice, refresh }) {
                   <strong>{strategy.name}</strong>
                   <span>{strategy.code} · {strategy.mode} · success {Number(strategy.success_rate || 0).toFixed(1)}%</span>
                 </div>
-                <Toggle label="Enabled" value={item.enabled} onChange={(enabled) => update(strategy, { enabled })} />
-                <Select label="EMA Filter" value={String(item.settings?.emaFilter ?? false)} onChange={(value) => update(strategy, { settings: { ...item.settings, emaFilter: value === 'both' ? 'both' : value === 'true' } })} options={['false', 'true', 'both']} />
-                <NumberInput label="Capital" value={item.min_capital || 0} onChange={(min_capital) => update(strategy, { min_capital })} />
+                <div className="strategyEditFields">
+                  <Toggle label="Enabled" value={item.enabled} onChange={(enabled) => update(strategy, { enabled })} />
+                  <Select label="EMA Filter" value={String(item.settings?.emaFilter ?? false)} onChange={(value) => update(strategy, { settings: { ...item.settings, emaFilter: value === 'both' ? 'both' : value === 'true' } })} options={['false', 'true', 'both']} />
+                  <NumberInput label="Capital" value={item.min_capital || 0} onChange={(min_capital) => update(strategy, { min_capital })} />
+                </div>
                 <button className="primary" onClick={() => save(strategy)}><Save size={16} />Save</button>
               </div>
             );
@@ -1285,10 +1287,19 @@ function OrderMiniCard({ order }) {
   );
 }
 
-function StatusStrip({ runtime }) {
+function StatusStrip({ runtime, mode }) {
   const mins = currentIstMinutes();
-  const next = mins < 8 * 60 ? 'Users can connect from 08:00' : mins < 9 * 60 + 14 ? 'Prepare data-source login and user connections' : mins < 15 * 60 ? 'Live strategy and websocket monitoring' : mins < 15 * 60 + 30 ? 'Exit checks and intraday close' : 'Market workflow complete';
+  const next = mins < 8 * 60 ? 'Connect window opens 08:00' : mins < 9 * 60 + 14 ? 'Prepare broker and data sync' : mins < 15 * 60 + 30 ? 'Swing entries and open-order monitoring' : 'Market workflow complete';
   const dryRun = runtime?.settings?.dry_run_orders !== false;
+  if (mode === 'userMode') {
+    return (
+      <div className="statusStrip userStatusStrip">
+        <SignalPill icon={ShieldCheck} label={marketOpen() ? 'Market open' : 'Market closed'} tone={marketOpen() ? 'good' : 'neutral'} />
+        <SignalPill icon={Clock} label={new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })} tone="neutral" />
+        <span>{next}</span>
+      </div>
+    );
+  }
   return (
     <div className="statusStrip">
       <SignalPill icon={ShieldCheck} label={marketOpen() ? 'Market open' : 'Market closed'} tone={marketOpen() ? 'good' : 'neutral'} />
@@ -1342,7 +1353,7 @@ function Shell({ title, subtitle, nav, active, setActive, children, refresh, bus
             <button className="iconButton" onClick={logout}><LogOut size={18} /></button>
           </div>
         </header>
-        <StatusStrip runtime={runtime} />
+        <StatusStrip runtime={runtime} mode={mode} />
         {children}
       </main>
     </div>
