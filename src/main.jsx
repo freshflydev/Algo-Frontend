@@ -435,15 +435,11 @@ function UserStrategies({ mobile, strategies, refresh, setNotice }) {
           <div className="historyStack">
             <div className="miniGrid twoCols">
               <Info label="Linked Instruments" value={history.watchlist?.length ? history.watchlist.join(', ') : 'All active instruments'} />
-              <Info label="Historical Runs" value={history.backtests?.length || 0} />
+              <Info label="Live Trades" value={history.trades?.length || 0} />
             </div>
             <div>
               <h3 className="sectionTitle">Triggered Trades</h3>
               <DataTable rows={history.trades || []} columns={['symbol', 'side', 'quantity', 'status', 'entry_price', 'exit_price', 'exit_reason', 'entered_at', 'order_tag']} highlightPnl />
-            </div>
-            <div>
-              <h3 className="sectionTitle">Backtest Performance</h3>
-              <DataTable rows={(history.backtests || []).map((row) => ({ symbol: row.symbol, range_from: row.range_from, range_to: row.range_to, created_at: row.created_at, ...row.stats }))} columns={['symbol', 'range_from', 'range_to', 'totalTrades', 'wins', 'losses', 'successRatio', 'targetHits', 'slHits', 'totalPnl', 'maxDrawdown']} highlightPnl />
             </div>
           </div>
         </Modal>
@@ -585,6 +581,16 @@ function AdminInstruments({ instruments, refresh, setNotice }) {
     setNotice('Instrument added. Daily data sync is marked for backend fetch.');
     refresh();
   };
+  const syncVisible = async () => {
+    const rangeTo = new Date().toISOString().slice(0, 10);
+    const rangeFrom = new Date(Date.now() - 75 * 86400000).toISOString().slice(0, 10);
+    const res = await api('/api/admin/candles/fetch', {
+      method: 'POST',
+      body: { resolution: 'D', rangeFrom, rangeTo, category: category === 'all' ? undefined : category },
+    });
+    setNotice(`Synced ${res.data?.length || 0} instrument${res.data?.length === 1 ? '' : 's'}.`);
+    refresh();
+  };
   const resync = async (row) => {
     const rangeTo = new Date().toISOString().slice(0, 10);
     const rangeFrom = new Date(Date.now() - 65 * 86400000).toISOString().slice(0, 10);
@@ -617,7 +623,13 @@ function AdminInstruments({ instruments, refresh, setNotice }) {
   return (
     <section className="instrumentLayout">
       <div className="panel wide">
-        <div className="panelHeader"><h2>Instrument Universe</h2><button className="primary" onClick={add} disabled={!symbol}><Plus size={16} />Add</button></div>
+        <div className="panelHeader">
+          <h2>Instrument Universe</h2>
+          <div className="buttonCluster">
+            <button onClick={syncVisible}><RefreshCw size={16} />Sync Visible</button>
+            <button className="primary" onClick={add} disabled={!symbol}><Plus size={16} />Add</button>
+          </div>
+        </div>
         <div className="instrumentToolbar">
           <label className="searchField">
             <Search size={15} />
@@ -1204,6 +1216,7 @@ function RuntimeHealth({ runtime }) {
         status={runtime.feed.enabled ? runtime.feed.status : 'Disabled'}
         tone={runtime.feed.connected ? 'good' : runtime.feed.enabled ? 'warn' : 'neutral'}
         rows={[
+          ['Data source', runtime.feed.dataSourceConnected ? 'Broker connected' : 'Broker not connected'],
           ['Last event', runtime.feed.lastEvent || 'No event recorded'],
           ['Subscribed', openSymbols],
         ]}
@@ -1434,7 +1447,8 @@ function buildRuntimeState(state = {}) {
   const schedulerLog = latestLog(logs, ['scheduler', 'scheduler-daily-gann', 'scheduler-intraday', 'scheduler-force-close', 'scheduler-swing']);
   const schedulerEnabled = settings.scheduler_enabled !== false;
   const feedEnabled = settings.live_feed_enabled !== false;
-  const feedConnected = feedEnabled && !isProblemLog(dataLog) && Boolean(dataLog || settings.data_source_status === 'connected');
+  const dataSourceConnected = settings.data_source_status === 'connected';
+  const feedLive = feedEnabled && !isProblemLog(dataLog) && Boolean(dataLog);
   const orderWsConnected = feedEnabled && !isProblemLog(orderLog) && Boolean(orderLog);
   return {
     settings,
@@ -1447,8 +1461,9 @@ function buildRuntimeState(state = {}) {
     },
     feed: {
       enabled: feedEnabled,
-      connected: feedConnected,
-      status: feedEnabled ? (feedConnected ? 'connected' : 'waiting') : 'disabled',
+      connected: feedLive,
+      dataSourceConnected,
+      status: !feedEnabled ? 'disabled' : feedLive ? 'live' : dataSourceConnected ? 'broker connected' : 'waiting',
       lastEvent: dataLog?.created_at,
       lastMessage: dataLog?.message,
     },
