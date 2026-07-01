@@ -17,6 +17,7 @@ import {
   KeyRound,
   LineChart,
   LogOut,
+  Menu,
   MonitorDot,
   Play,
   PlugZap,
@@ -35,6 +36,7 @@ import {
   Users,
   Wifi,
   WifiOff,
+  X,
 } from 'lucide-react';
 import './styles.css';
 
@@ -1219,23 +1221,42 @@ function StatusStrip() {
 
 function Shell({ title, subtitle, nav, active, setActive, children, refresh, busy, logout }) {
   const mode = title === 'Algo Trading' ? 'userMode' : 'adminMode';
+  const isAdmin = mode === 'adminMode';
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const chooseNav = (id) => {
+    setActive(id);
+    setDrawerOpen(false);
+  };
+  const NavButtons = ({ drawer = false }) => (
+    <nav className={drawer ? 'drawerNav' : 'navRail'}>
+      {nav.map(([id, Icon, label]) => (
+        <button key={id} className={active === id ? 'nav active' : 'nav'} onClick={() => chooseNav(id)} title={label}>
+          <Icon size={17} /><span>{label}</span>
+        </button>
+      ))}
+    </nav>
+  );
   return (
     <div className={`app ${mode}`}>
       <aside className="sidebar">
         <div className="brand"><Bolt size={22} /><div><strong>AlgoBot</strong><span>Trading Console</span></div></div>
-        <nav className="navRail">
-          {nav.map(([id, Icon, label]) => <button key={id} className={active === id ? 'nav active' : 'nav'} onClick={() => setActive(id)} title={label}><Icon size={17} /><span>{label}</span></button>)}
-        </nav>
+        <NavButtons />
       </aside>
+      {isAdmin && drawerOpen && <button className="drawerBackdrop" aria-label="Close navigation" onClick={() => setDrawerOpen(false)} />}
+      {isAdmin && (
+        <aside className={`navDrawer ${drawerOpen ? 'open' : ''}`}>
+          <div className="drawerHeader">
+            <div className="brand"><Bolt size={22} /><div><strong>AlgoBot</strong><span>Admin menu</span></div></div>
+            <button className="iconButton" onClick={() => setDrawerOpen(false)}><X size={18} /></button>
+          </div>
+          <NavButtons drawer />
+        </aside>
+      )}
       <main className="main">
         <header className="topbar">
           <div><h1>{title}</h1><p>{subtitle}</p></div>
           <div className="buttonCluster">
-            {mode === 'adminMode' && (
-              <select className="navSelect" value={active} onChange={(event) => setActive(event.target.value)}>
-                {nav.map(([id, , label]) => <option key={id} value={id}>{label}</option>)}
-              </select>
-            )}
+            {isAdmin && <button className="iconButton menuButton" onClick={() => setDrawerOpen(true)}><Menu size={18} /></button>}
             <button className="iconButton" onClick={refresh} disabled={busy}><RefreshCw size={18} className={busy ? 'spin' : ''} /></button>
             <button className="iconButton" onClick={logout}><LogOut size={18} /></button>
           </div>
